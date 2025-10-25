@@ -1,0 +1,211 @@
+Heck yes—let’s turn this into a judge-stopping, neon-slick fintech app without breaking your working logic. Here’s a ruthless, copy-pasteable front-end plan: what to build, how it should look, and the exact snippets to get there fast.
+
+0) Visual DNA (lock this first)
+
+Theme: dark, neon, glassmorphism.
+
+Palette:
+
+Base Blue #0052FF (glow), #66A3FF (accents)
+
+Hedera Purple #7A3EF2, #B993FF
+
+Background #0B0B10, surfaces #12121A, text #EAEAF2
+
+Type: Inter (UI), Space Grotesk (headlines).
+
+Motion: fast + subtle: duration-300 for UI, duration-700 for page sections, cubic-bezier (0.16, 1, 0.3, 1).
+
+Install once:
+
+cd apps/web
+npm i framer-motion lucide-react clsx
+# optional charts + toasts
+npm i recharts sonner
+
+
+Add Google Fonts in app/layout.tsx (Inter + Space Grotesk).
+
+1) Global polish (instant “expensive” feel)
+
+/app/globals.css – add glow + grid + glass:
+
+:root { --bg:#0B0B10; --card:#12121A; --ring:#7A3EF2; }
+body { background: radial-gradient(1200px 800px at 70% -10%, rgba(122,62,242,.25), transparent) , var(--bg); }
+.glass { background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02)); border:1px solid rgba(255,255,255,.08); backdrop-filter: blur(10px);}
+.neon { box-shadow: 0 0 0.5rem rgba(122,62,242,.6), 0 0 1.2rem rgba(0,82,255,.45) inset;}
+.grid-bg{ background-image: radial-gradient(rgba(255,255,255,.08) 1px, transparent 1px); background-size: 22px 22px; }
+a:hover{ text-decoration: underline; text-underline-offset: 3px;}
+
+2) Hero header with animated gradient
+
+Drop at top of /app/dashboard/page.tsx:
+
+import { motion } from "framer-motion";
+
+<motion.div
+  initial={{ opacity: 0, y: 12 }}
+  animate={{ opacity: 1, y: 0 }}
+  transition={{ duration: .6, ease: [0.16,1,0.3,1] }}
+  className="relative overflow-hidden rounded-3xl p-8 md:p-12 glass neon"
+>
+  <div className="absolute inset-0 opacity-30 blur-3xl"
+       style={{background:"conic-gradient(from 120deg,#0052FF, #7A3EF2, #66A3FF, #B993FF, #0052FF)"}}/>
+  <div className="relative">
+    <h1 className="font-semibold tracking-tight text-3xl md:text-5xl" style={{fontFamily:"'Space Grotesk', sans-serif"}}>
+      Merchant Analytics Dashboard
+    </h1>
+    <p className="mt-2 text-zinc-300">Cross-chain payments (Avail → Base USDC) • Agentic receipts (Hedera)</p>
+  </div>
+</motion.div>
+
+3) KPI cards with count-up animation
+import { motion, useAnimationControls } from "framer-motion";
+import { useEffect } from "react";
+
+function KPI({ label, value, suffix=""}:{label:string; value:number; suffix?:string}) {
+  const controls = useAnimationControls();
+  useEffect(()=>{ controls.start({ n: value, transition:{duration:.8,ease:[0.16,1,0.3,1]} }); },[value]);
+  return (
+    <motion.div className="glass rounded-2xl p-6 neon"
+      whileHover={{ scale: 1.01 }} transition={{ type:"spring", stiffness: 300, damping: 24 }}>
+      <div className="text-zinc-400 text-sm">{label}</div>
+      <motion.div className="text-3xl font-semibold mt-1"
+        animate={controls}
+        initial={{ n: 0 }}
+      >
+        <motion.span>
+          {Math.round((value + Number.EPSILON) * 100) / 100}{suffix && ` ${suffix}`}
+        </motion.span>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+
+Use them in a responsive grid:
+
+<div className="grid md:grid-cols-3 gap-5">
+  <KPI label="Base Chain Transactions" value={summary.totalCount}/>
+  <KPI label="On-Chain USDC Volume" value={Number(summary.totalUSDC)} suffix="USDC"/>
+  <KPI label="Agent Payments" value={receipts.length}/>
+</div>
+
+4) Recent Agent Payments – deluxe table
+
+Shorten hashes, copy-to-clipboard, live status dot, link to explorer when txHash starts with 0x.
+
+import { Copy } from "lucide-react";
+
+function ShortHash({h}:{h:string}) {
+  return <span className="font-mono">{h?.slice(0,6)}…{h?.slice(-4)}</span>;
+}
+function CopyBtn({text}:{text:string}) {
+  return <button onClick={()=>navigator.clipboard.writeText(text)} className="opacity-70 hover:opacity-100">
+    <Copy className="w-4 h-4"/>
+  </button>;
+}
+
+<table className="w-full text-sm glass rounded-2xl overflow-hidden">
+  <thead className="bg-white/5">
+    <tr className="[&>th]:py-3 [&>th]:px-4 text-left text-zinc-300">
+      <th>Tx</th><th>From</th><th>To</th><th>Amount</th><th>Time</th><th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {receipts.map((r,i)=>(
+      <tr key={i} className="border-t border-white/10 hover:bg-white/5">
+        <td className="px-4 py-3 flex items-center gap-2">
+          {r.txHash?.startsWith("0x")
+            ? <a className="text-blue-300 hover:text-blue-200" target="_blank"
+                 href={`https://base.blockscout.com/tx/${r.txHash}`}><ShortHash h={r.txHash}/></a>
+            : <ShortHash h={r.txHash}/>}
+          <CopyBtn text={r.txHash}/>
+        </td>
+        <td className="px-4 py-3"><ShortHash h={r.from}/></td>
+        <td className="px-4 py-3"><ShortHash h={r.to}/></td>
+        <td className="px-4 py-3 font-medium">{Number(r.amount).toFixed(2)} <span className="text-zinc-400">USDC</span></td>
+        <td className="px-4 py-3">{new Date(r.timestamp).toLocaleString()}</td>
+        <td className="px-4 py-3"><span className="inline-block w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_12px_2px_rgba(16,185,129,.75)]"/></td>
+      </tr>
+    ))}
+  </tbody>
+</table>
+
+5) Chart (payments over time) – minimal Recharts
+import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip } from "recharts";
+const hourly = groupByHour(receipts); // implement simple bucketing
+
+<div className="glass rounded-2xl p-6">
+  <div className="flex items-center justify-between mb-2">
+    <h3 className="font-semibold">Agent Volume (Last 24h)</h3>
+  </div>
+  <div className="h-56">
+    <ResponsiveContainer>
+      <LineChart data={hourly}><XAxis dataKey="t"/><YAxis/><Tooltip/>
+        <Line type="monotone" dataKey="v" stroke="#7A3EF2" strokeWidth={2} dot={false}/>
+      </LineChart>
+    </ResponsiveContainer>
+  </div>
+</div>
+
+6) Micro-interactions that impress judges
+
+Skeletons: show shimmering placeholders while SWR loads.
+
+Toasts: success toast when a receipt arrives (use sonner).
+
+Parallax glow: add faint floating blobs behind sections (already with radial-gradient).
+
+Staggered entrance: wrap sections in Framer Motion with delay increments.
+
+Quick toast:
+
+import { Toaster, toast } from "sonner";
+// in layout: <Toaster theme="dark" />
+useEffect(()=>{ toast.success("New agent payment logged"); },[receipts.length]);
+
+7) Navigation + badge
+
+Top bar with product feel:
+
+<div className="sticky top-0 z-50 backdrop-blur-md border-b border-white/10 bg-black/40">
+  <div className="mx-auto max-w-6xl px-4 h-14 flex items-center justify-between">
+    <div className="flex items-center gap-3">
+      <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#0052FF] to-[#7A3EF2]"></div>
+      <span className="font-semibold">AgenticPay</span>
+      <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-white/10 border border-white/10">Demo</span>
+    </div>
+    <nav className="flex gap-4 text-sm">
+      <a href="/pay">Pay</a>
+      <a href="/dashboard">Dashboard</a>
+      <a href="https://base.blockscout.com/address/… " target="_blank" className="text-blue-300">Explorer</a>
+    </nav>
+  </div>
+</div>
+
+8) Replit AI prompt (paste this verbatim)
+
+“You’ll beautify a Next.js + Tailwind dashboard. Keep all API routes and data logic exactly as-is. Apply a dark neon + glassmorphism style using Base Blue (#0052FF) and Hedera Purple (#7A3EF2). Use Inter and Space Grotesk. Animate with Framer Motion (subtle, springy). Polish /app/dashboard/page.tsx and /app/pay/page.tsx: gradient hero, glass KPI cards with count-up, glowing borders, responsive grid, hover states, a Recharts line chart for agent volume. Do not change fetch URLs or API shapes. Improve accessibility and focus outline colors. Add a sticky translucent navbar with links to /pay and /dashboard. Keep it fast and minimal.”
+
+9) Demo cues (what to literally say)
+
+“Notice the glowing KPIs increase as the agent posts a receipt.”
+
+“Click any Tx to open Blockscout instantly (proof of settlement on Base).”
+
+“Our agentic layer (Hedera A2A) updates the dashboard in real-time with receipts.”
+
+“We intentionally combined Avail’s routing, Base USDC settlement, Hedera agents, and Blockscout analytics into one seamless UX.”
+
+10) Final polish checklist (fast)
+
+ Mobile layout (stack KPIs, table scroll-x).
+
+ Favicon + title.
+
+ Replace placeholder copy with crisp microcopy.
+
+ Add “Simulate Payment” button for offline demo.
+
+ Add a tiny footer credit line for all sponsors.

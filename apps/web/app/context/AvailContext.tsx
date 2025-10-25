@@ -1,8 +1,8 @@
 'use client'
 
 import { createContext, useContext, ReactNode, useState, useEffect } from 'react'
-import { useAccount } from 'wagmi'
-import { usePrivy } from '@privy-io/react-auth'
+import { useAccount, useBalance, useReadContract } from 'wagmi'
+import { formatUnits } from 'viem'
 import { NexusSDK } from '@avail-project/nexus-core'
 
 interface PaymentMethod {
@@ -30,7 +30,29 @@ const AvailContext = createContext<AvailContextType | undefined>(undefined)
 
 export function AvailProvider({ children }: { children: ReactNode }) {
   const { address } = useAccount()
-  const { authenticated } = usePrivy()
+  const { data: balance, isLoading: isBalanceLoading, refetch: refetchBalance } = useBalance({
+    address: address,
+  })
+  
+  // USDC contract address on Base Sepolia
+  const USDC_ADDRESS = '0x036CbD53842c5426634e7929541eC2318f3dCF7e'
+  
+  // Fetch USDC balance
+  const { data: usdcBalance, isLoading: isUsdcLoading, refetch: refetchUsdc } = useReadContract({
+    address: USDC_ADDRESS as `0x${string}`,
+    abi: [
+      {
+        name: 'balanceOf',
+        type: 'function',
+        stateMutability: 'view',
+        inputs: [{ name: 'account', type: 'address' }],
+        outputs: [{ name: '', type: 'uint256' }]
+      }
+    ],
+    functionName: 'balanceOf',
+    args: address ? [address] : undefined,
+  })
+  
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([])
   const [unifiedBalance, setUnifiedBalance] = useState('0')
   const [isLoading, setIsLoading] = useState(false)
@@ -43,7 +65,6 @@ export function AvailProvider({ children }: { children: ReactNode }) {
     if (typeof window !== 'undefined' && window.ethereum) {
       try {
         const nexus = new NexusSDK({
-          walletProvider: window.ethereum,
           network: 'testnet', // Use testnet for Base Sepolia
         })
         setNexusSDK(nexus)
@@ -54,6 +75,85 @@ export function AvailProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  // Update unified balance from wallet balance - PRIORITY OVER NEXUS SDK
+  useEffect(() => {
+    console.log('Wallet balance effect triggered:', { balance, usdcBalance, address, isBalanceLoading, isUsdcLoading })
+    
+    if (address && (balance || usdcBalance !== undefined)) {
+      let totalUsdValue = 0
+      const paymentMethodsList: PaymentMethod[] = []
+      
+      // Add ETH balance
+      if (balance) {
+        const balanceInEth = parseFloat(formatUnits(balance.value, balance.decimals))
+        const ethValueInUsd = balanceInEth * 3000 // ETH to USD conversion (Base Sepolia testnet price)
+        totalUsdValue += ethValueInUsd
+        
+        const ethPaymentMethod: PaymentMethod = {
+          id: 'wallet-eth',
+          name: 'ETH in Wallet',
+          symbol: 'ETH',
+          network: 'Base Sepolia',
+          balance: balanceInEth.toFixed(4),
+          address: address,
+          decimals: balance.decimals,
+          logoUrl: 'https://cryptologos.cc/logos/ethereum-eth-logo.png'
+        }
+        paymentMethodsList.push(ethPaymentMethod)
+      }
+      
+      // Add USDC balance
+      if (usdcBalance !== undefined) {
+        const usdcBalanceFormatted = parseFloat(formatUnits(usdcBalance, 6)) // USDC has 6 decimals
+        totalUsdValue += usdcBalanceFormatted // USDC is already in USD
+        
+        const usdcPaymentMethod: PaymentMethod = {
+          id: 'wallet-usdc',
+          name: 'USDC in Wallet',
+          symbol: 'USDC',
+          network: 'Base Sepolia',
+          balance: usdcBalanceFormatted.toFixed(2),
+          address: address,
+          decimals: 6,
+          logoUrl: 'https://cryptologos.cc/logos/usd-coin-usdc-logo.png'
+        }
+        paymentMethodsList.push(usdcPaymentMethod)
+      }
+      
+      console.log('Setting unified balance from wallet:', { totalUsdValue, paymentMethodsList })
+      setUnifiedBalance(totalUsdValue.toLocaleString())
+      setPaymentMethods(paymentMethodsList)
+    } else if (address && !isBalanceLoading && !isUsdcLoading) {
+      // If connected but no balance data, set to 0
+      console.log('No balance data available, setting to 0')
+      setUnifiedBalance('0')
+      setPaymentMethods([])
+    }
+  }, [balance, usdcBalance, address, isBalanceLoading, isUsdcLoading])
+
+  // Force wallet balance update when address changes
+  useEffect(() => {
+    if (address && balance) {
+      console.log('Address changed, forcing wallet balance update')
+      const balanceInEth = parseFloat(formatUnits(balance.value, balance.decimals))
+      const balanceInUsd = balanceInEth * 3000 // ETH to USD conversion (Base Sepolia testnet price)
+      setUnifiedBalance(balanceInUsd.toLocaleString())
+      
+      const walletPaymentMethod: PaymentMethod = {
+        id: 'wallet-eth',
+        name: 'ETH in Wallet',
+        symbol: 'ETH',
+        network: 'Base Sepolia',
+        balance: balanceInEth.toFixed(4),
+        address: address,
+        decimals: balance.decimals,
+        logoUrl: 'https://cryptologos.cc/logos/ethereum-eth-logo.png'
+      }
+      
+      setPaymentMethods([walletPaymentMethod])
+    }
+  }, [address, balance])
+
   const refreshBalances = async () => {
     if (!address) {
       setPaymentMethods([])
@@ -61,108 +161,82 @@ export function AvailProvider({ children }: { children: ReactNode }) {
       return
     }
     
-    console.log('Refresh balances called with:', { address, authenticated, nexusSDK: !!nexusSDK })
+    console.log('Refresh balances called with:', { address, nexusSDK: !!nexusSDK, balance })
 
     setIsLoading(true)
     setError(null)
 
     try {
-      console.log('Fetching unified balance from Avail Nexus SDK...')
+      // Force refetch of both ETH and USDC balances
+      console.log('Refetching ETH and USDC balances...')
+      const [ethResult, usdcResult] = await Promise.all([
+        refetchBalance(),
+        refetchUsdc()
+      ])
       
-      // Try to use real Avail Nexus SDK if available
-      if (nexusSDK) {
-        try {
-          const balances = await nexusSDK.getUnifiedBalances(address)
-          console.log('Unified balances from SDK:', balances)
+      console.log('Refetch results:', { ethResult, usdcResult })
+      
+      // Use the fresh data from refetch
+      const freshBalance = ethResult.data
+      const freshUsdcBalance = usdcResult.data
+      
+      if (address && (freshBalance || freshUsdcBalance !== undefined)) {
+        let totalUsdValue = 0
+        const paymentMethodsList: PaymentMethod[] = []
+        
+        // Add ETH balance
+        if (freshBalance) {
+          const balanceInEth = parseFloat(formatUnits(freshBalance.value, freshBalance.decimals))
+          const ethValueInUsd = balanceInEth * 3000 // ETH to USD conversion (Base Sepolia testnet price)
+          totalUsdValue += ethValueInUsd
           
-          // Calculate total balance from all assets
-          const totalBalance = balances.reduce((sum: number, asset: any) => {
-            return sum + parseFloat(asset.balance || '0')
-          }, 0)
+          const ethPaymentMethod: PaymentMethod = {
+            id: 'wallet-eth',
+            name: 'ETH in Wallet',
+            symbol: 'ETH',
+            network: 'Base Sepolia',
+            balance: balanceInEth.toFixed(4),
+            address: address,
+            decimals: freshBalance.decimals,
+            logoUrl: 'https://cryptologos.cc/logos/ethereum-eth-logo.png'
+          }
+          paymentMethodsList.push(ethPaymentMethod)
+        }
+        
+        // Add USDC balance
+        if (freshUsdcBalance !== undefined) {
+          const usdcBalanceFormatted = parseFloat(formatUnits(freshUsdcBalance, 6))
+          totalUsdValue += usdcBalanceFormatted
           
-          // Convert balance to formatted string
-          const formattedBalance = totalBalance.toLocaleString()
-          setUnifiedBalance(formattedBalance)
-        } catch (sdkError) {
-          console.error('SDK getUnifiedBalances error:', sdkError)
-          // Fall through to mock data
+          const usdcPaymentMethod: PaymentMethod = {
+            id: 'wallet-usdc',
+            name: 'USDC in Wallet',
+            symbol: 'USDC',
+            network: 'Base Sepolia',
+            balance: usdcBalanceFormatted.toFixed(2),
+            address: address,
+            decimals: 6,
+            logoUrl: 'https://cryptologos.cc/logos/usd-coin-usdc-logo.png'
+          }
+          paymentMethodsList.push(usdcPaymentMethod)
         }
-      }
-      
-      // Always show payment methods (using mock data for now)
-      // In the future, this could be enhanced to fetch real network-specific balances from SDK
-      const mockPaymentMethods: PaymentMethod[] = [
-        {
-          id: 'usdc-base',
-          name: 'USDC on Base',
-          symbol: 'USDC',
-          network: 'Base',
-          balance: '1,250.50',
-          address: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
-          decimals: 6,
-          logoUrl: 'https://cryptologos.cc/logos/usd-coin-usdc-logo.png'
-        },
-        {
-          id: 'usdc-optimism',
-          name: 'USDC on Optimism',
-          symbol: 'USDC',
-          network: 'Optimism',
-          balance: '850.25',
-          address: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85',
-          decimals: 6,
-          logoUrl: 'https://cryptologos.cc/logos/usd-coin-usdc-logo.png'
-        },
-        {
-          id: 'usdc-arbitrum',
-          name: 'USDC on Arbitrum',
-          symbol: 'USDC',
-          network: 'Arbitrum',
-          balance: '2,100.75',
-          address: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
-          decimals: 6,
-          logoUrl: 'https://cryptologos.cc/logos/usd-coin-usdc-logo.png'
-        },
-        {
-          id: 'usdc-polygon',
-          name: 'USDC on Polygon',
-          symbol: 'USDC',
-          network: 'Polygon',
-          balance: '3,500.00',
-          address: '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174',
-          decimals: 6,
-          logoUrl: 'https://cryptologos.cc/logos/usd-coin-usdc-logo.png'
-        }
-      ]
-      
-      setPaymentMethods(mockPaymentMethods)
-      
-      // Calculate unified balance from mock data if SDK didn't provide it
-      if ((!nexusSDK || unifiedBalance === '0') && mockPaymentMethods.length > 0) {
-        const totalBalance = mockPaymentMethods.reduce((sum, method) => {
-          return sum + parseFloat(method.balance.replace(/,/g, ''))
-        }, 0)
-        setUnifiedBalance(totalBalance.toLocaleString())
+        
+        console.log('Using wallet balance for refresh:', { totalUsdValue, paymentMethodsList })
+        setUnifiedBalance(totalUsdValue.toLocaleString())
+        setPaymentMethods(paymentMethodsList)
+        console.log('Wallet balance set successfully')
+      } else {
+        console.log('No wallet balance available, setting to 0')
+        setPaymentMethods([])
+        setUnifiedBalance('0')
       }
       
     } catch (err) {
       setError('Failed to fetch balances')
-      console.error('Error fetching Avail balances:', err)
+      console.error('Error fetching wallet balance:', err)
       
-      // Fallback to mock data if everything fails
-      const fallbackMethods: PaymentMethod[] = [
-        {
-          id: 'usdc-base',
-          name: 'USDC on Base',
-          symbol: 'USDC',
-          network: 'Base',
-          balance: '1,250.50',
-          address: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
-          decimals: 6,
-          logoUrl: 'https://cryptologos.cc/logos/usd-coin-usdc-logo.png'
-        }
-      ]
-      setPaymentMethods(fallbackMethods)
-      setUnifiedBalance('1,250.50')
+      setPaymentMethods([])
+      setUnifiedBalance('0')
     } finally {
       setIsLoading(false)
     }
@@ -179,6 +253,30 @@ export function AvailProvider({ children }: { children: ReactNode }) {
       setSelectedPaymentMethod(null)
     }
   }, [address, nexusSDK])
+
+  // Force wallet balance update on component mount
+  useEffect(() => {
+    console.log('Component mounted, checking wallet balance:', { address, balance, isBalanceLoading })
+    if (address && balance) {
+      console.log('Forcing wallet balance update on mount')
+      const balanceInEth = parseFloat(formatUnits(balance.value, balance.decimals))
+      const balanceInUsd = balanceInEth * 3000 // ETH to USD conversion (Base Sepolia testnet price)
+      setUnifiedBalance(balanceInUsd.toLocaleString())
+      
+      const walletPaymentMethod: PaymentMethod = {
+        id: 'wallet-eth',
+        name: 'ETH in Wallet',
+        symbol: 'ETH',
+        network: 'Base Sepolia',
+        balance: balanceInEth.toFixed(4),
+        address: address,
+        decimals: balance.decimals,
+        logoUrl: 'https://cryptologos.cc/logos/ethereum-eth-logo.png'
+      }
+      
+      setPaymentMethods([walletPaymentMethod])
+    }
+  }, [])
 
   return (
     <AvailContext.Provider

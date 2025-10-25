@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "dev": "next dev -H 0.0.0.0 -p 3000",
+    "dev": "next dev -H 0.0.0.0 -p 3002",
     "build": "next build",
     "start": "next start -H 0.0.0.0 -p 5000",
     "lint": "next lint"
@@ -13,9 +13,6 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "@avail-project/nexus": "^1.1.0",
-    "@avail-project/nexus-core": "^0.0.2",
-    "@avail-project/nexus-widgets": "^0.0.6",
     "@privy-io/react-auth": "^3.4.1",
     "@rainbow-me/rainbowkit": "^2.2.9",
     "@react-native-async-storage/async-storage": "^2.2.0",

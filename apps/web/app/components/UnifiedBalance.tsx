@@ -4,13 +4,11 @@ import { motion } from 'framer-motion'
 import { Wallet, RefreshCw, AlertCircle, RotateCcw } from 'lucide-react'
 import { useAvail } from '../context/AvailContext'
 import { useAccount } from 'wagmi'
-import { usePrivy } from '@privy-io/react-auth'
 import { useState } from 'react'
 
 export function UnifiedBalance() {
   const { unifiedBalance, isLoading, error, refreshBalances } = useAvail()
   const { address } = useAccount()
-  const { authenticated } = usePrivy()
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null)
 
@@ -66,18 +64,20 @@ export function UnifiedBalance() {
           <button
             onClick={handleRefresh}
             disabled={isLoading || isRefreshing}
-            className="p-2 rounded-lg bg-zinc-800/50 hover:bg-zinc-700/50 transition-colors disabled:opacity-50"
-            title="Refresh balance"
+            className="px-3 py-2 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 transition-colors disabled:opacity-50 text-sm font-semibold"
+            title="Force refresh balance from blockchain"
           >
-            <RefreshCw className={`w-4 h-4 ${isLoading || isRefreshing ? 'animate-spin' : ''}`} />
-          </button>
-          <button
-            onClick={handleRefresh}
-            disabled={isLoading || isRefreshing}
-            className="p-2 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 transition-colors disabled:opacity-50"
-            title="Force refresh from Avail Nexus"
-          >
-            <RotateCcw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            {isRefreshing ? (
+              <>
+                <RefreshCw className="w-4 h-4 animate-spin inline mr-2" />
+                Refreshing...
+              </>
+            ) : (
+              <>
+                <RefreshCw className="w-4 h-4 inline mr-2" />
+                Refresh Balance
+              </>
+            )}
           </button>
         </div>
       </div>
@@ -105,6 +105,12 @@ export function UnifiedBalance() {
                 Last updated: {lastRefresh.toLocaleTimeString()}
               </p>
             )}
+            {/* Debug info */}
+            <div className="mt-2 p-2 bg-zinc-800/50 rounded text-xs text-zinc-500">
+              <div>Debug: Address: {address?.slice(0, 6)}...{address?.slice(-4)}</div>
+              <div>Balance: {unifiedBalance}</div>
+              <div>Loading: {isLoading ? 'Yes' : 'No'}</div>
+            </div>
           </div>
 
           {isLoading && (

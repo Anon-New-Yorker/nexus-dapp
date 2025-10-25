@@ -7,8 +7,8 @@ const BLOCKSCOUT_BASE = 'https://base-sepolia.blockscout.com/api'
 
 export async function GET(request: Request) {
   try {
-    const url = new URL(request.url)
-    const address = url.searchParams.get('address') || DEFAULT_MERCHANT_ADDRESS
+    const { searchParams } = new URL(request.url)
+    const address = searchParams.get('address') || DEFAULT_MERCHANT_ADDRESS
 
     const response = await fetch(
       `${BLOCKSCOUT_BASE}?module=account&action=tokentx&address=${address}&contractaddress=${USDC_ADDRESS}&page=1&offset=100&sort=desc`

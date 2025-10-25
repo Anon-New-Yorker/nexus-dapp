@@ -1,0 +1,26 @@
+{
+  "name": "agentic-payments",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "dev": "cd apps/web && npm run dev",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "@types/node": "^24.9.1",
+    "eslint": "^9.38.0",
+    "prettier": "^3.6.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@hashgraph/sdk": "^2.75.0",
+    "hedera-agent-kit": "^3.4.0",
+    "node-fetch": "^3.3.2",
+    "react-is": "^19.2.0"
+  }
+}

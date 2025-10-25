@@ -4,13 +4,26 @@ import { useState, useEffect } from 'react'
 import { X, Wallet, Store, User, ArrowRight, Mail } from 'lucide-react'
 import { useUser } from '../context/UserContext'
 import { useAccount } from 'wagmi'
-import { usePrivy } from '@privy-io/react-auth'
 import { ConnectButton } from '@rainbow-me/rainbowkit'
+
+// Conditional Privy import
+let usePrivy: any = null
+let isPrivyAvailable = false
+
+try {
+  const privyModule = require('@privy-io/react-auth')
+  usePrivy = privyModule.usePrivy
+  isPrivyAvailable = !!process.env.NEXT_PUBLIC_PRIVY_APP_ID
+} catch (e) {
+  // Privy not available, will use RainbowKit only
+  console.log('Privy not configured, using RainbowKit only')
+}
 
 export function LoginModal() {
   const { isLoginModalOpen, closeLoginModal, setUserRole } = useUser()
   const { address, isConnected } = useAccount()
-  const { login, authenticated } = usePrivy()
+  const privyHook = isPrivyAvailable && usePrivy ? usePrivy() : { login: () => {}, authenticated: false }
+  const { login, authenticated } = privyHook
   const [isConnecting, setIsConnecting] = useState(false)
   const [intendedRole, setIntendedRole] = useState<'user' | 'merchant' | null>(null)
 
@@ -81,57 +94,61 @@ export function LoginModal() {
         </div>
 
         <div className="max-w-md mx-auto space-y-6">
-          {/* Privy Login Options */}
-          <div className="glass-card p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500/20 to-blue-500/10 flex items-center justify-center border border-purple-500/30">
-                <User className="w-5 h-5 text-purple-400" />
-              </div>
-              <div>
-                <h3 className="font-semibold">Sign in with Privy</h3>
-                <p className="text-sm text-zinc-400">Email, Social, or Wallet</p>
-              </div>
-            </div>
-            
-            <div className="space-y-3">
-              <button
-                onClick={handlePrivyLogin}
-                className="w-full px-4 py-3 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-lg hover:from-purple-600 hover:to-blue-600 transition-all font-semibold inline-flex items-center justify-center gap-2"
-              >
-                <Mail className="w-4 h-4" />
-                Login with Privy
-              </button>
-              <p className="text-xs text-zinc-500 text-center">
-                Supports Email, Google, and Wallet connection
-              </p>
-              
-              {authenticated && (
-                <div className="space-y-3">
-                  <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
-                    <p className="text-sm text-green-400">✓ Authenticated Successfully</p>
+          {/* Privy Login Options - Only show if Privy is available */}
+          {isPrivyAvailable && (
+            <>
+              <div className="glass-card p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500/20 to-blue-500/10 flex items-center justify-center border border-purple-500/30">
+                    <User className="w-5 h-5 text-purple-400" />
                   </div>
-                  <button
-                    onClick={handleUserRole}
-                    className="w-full px-4 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg hover:from-blue-600 hover:to-purple-600 transition-all font-semibold inline-flex items-center justify-center gap-2"
-                  >
-                    <User className="w-4 h-4" />
-                    Continue as Personal User
-                    <ArrowRight className="w-4 h-4" />
-                  </button>
+                  <div>
+                    <h3 className="font-semibold">Sign in with Privy</h3>
+                    <p className="text-sm text-zinc-400">Email, Social, or Wallet</p>
+                  </div>
                 </div>
-              )}
-            </div>
-          </div>
+                
+                <div className="space-y-3">
+                  <button
+                    onClick={handlePrivyLogin}
+                    className="w-full px-4 py-3 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-lg hover:from-purple-600 hover:to-blue-600 transition-all font-semibold inline-flex items-center justify-center gap-2"
+                  >
+                    <Mail className="w-4 h-4" />
+                    Login with Privy
+                  </button>
+                  <p className="text-xs text-zinc-500 text-center">
+                    Supports Email, Google, and Wallet connection
+                  </p>
+                  
+                  {authenticated && (
+                    <div className="space-y-3">
+                      <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
+                        <p className="text-sm text-green-400">✓ Authenticated Successfully</p>
+                      </div>
+                      <button
+                        onClick={handleUserRole}
+                        className="w-full px-4 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg hover:from-blue-600 hover:to-purple-600 transition-all font-semibold inline-flex items-center justify-center gap-2"
+                      >
+                        <User className="w-4 h-4" />
+                        Continue as Personal User
+                        <ArrowRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
 
-          {/* OR Divider */}
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-zinc-700"></div>
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-4 bg-zinc-900 text-zinc-500">OR</span>
-            </div>
-          </div>
+              {/* OR Divider */}
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-zinc-700"></div>
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-4 bg-zinc-900 text-zinc-500">OR</span>
+                </div>
+              </div>
+            </>
+          )}
 
           {/* Direct Wallet Connection */}
           <div className="glass-card p-6">

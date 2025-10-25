@@ -18,29 +18,42 @@ const config = getDefaultConfig({
 
 const queryClient = new QueryClient()
 
+// Check if Privy App ID is configured
+const PRIVY_APP_ID = process.env.NEXT_PUBLIC_PRIVY_APP_ID
+
 export function Providers({ children }: { children: React.ReactNode }) {
-  return (
-    <PrivyProvider
-      appId={process.env.NEXT_PUBLIC_PRIVY_APP_ID || 'cm6cvvtji00yvgj5e7b7jvprd'}
-      config={{
-        loginMethods: ['email', 'google', 'wallet'],
-        appearance: {
-          theme: 'dark',
-          accentColor: '#676FFF',
-        },
-      }}
-    >
-      <WagmiProvider config={config}>
-        <QueryClientProvider client={queryClient}>
-          <RainbowKitProvider>
-            <UserProvider>
-              <AvailProvider>
-                {children}
-              </AvailProvider>
-            </UserProvider>
-          </RainbowKitProvider>
-        </QueryClientProvider>
-      </WagmiProvider>
-    </PrivyProvider>
+  const content = (
+    <WagmiProvider config={config}>
+      <QueryClientProvider client={queryClient}>
+        <RainbowKitProvider>
+          <UserProvider>
+            <AvailProvider>
+              {children}
+            </AvailProvider>
+          </UserProvider>
+        </RainbowKitProvider>
+      </QueryClientProvider>
+    </WagmiProvider>
   )
+
+  // Only wrap with PrivyProvider if a valid App ID is configured
+  if (PRIVY_APP_ID && PRIVY_APP_ID.startsWith('clp')) {
+    return (
+      <PrivyProvider
+        appId={PRIVY_APP_ID}
+        config={{
+          loginMethods: ['email', 'google', 'wallet'],
+          appearance: {
+            theme: 'dark',
+            accentColor: '#676FFF',
+          },
+        }}
+      >
+        {content}
+      </PrivyProvider>
+    )
+  }
+
+  // Without Privy, just return the content with RainbowKit
+  return content
 }

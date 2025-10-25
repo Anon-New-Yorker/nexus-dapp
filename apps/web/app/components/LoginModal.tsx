@@ -13,30 +13,46 @@ export function LoginModal() {
   const { login, authenticated } = usePrivy()
   const [isConnecting, setIsConnecting] = useState(false)
 
-  // Handle wallet connection success
+  // Handle wallet connection success - only if modal is open
   useEffect(() => {
-    if (isConnected && address) {
+    if (isConnected && address && isLoginModalOpen) {
       setIsConnecting(false)
-      // Set default role as 'user' for direct connection
-      setUserRole('user')
-      closeLoginModal()
+      // Don't auto-set role, let user choose
+      // Just close the modal if they connected via direct wallet
+      // closeLoginModal()
     }
-  }, [isConnected, address, setUserRole, closeLoginModal])
+  }, [isConnected, address, isLoginModalOpen])
 
-  // Handle Privy authentication success
+  // Handle Privy authentication success - only if modal is open
   useEffect(() => {
-    if (authenticated) {
-      setUserRole('user')
-      closeLoginModal()
+    if (authenticated && isLoginModalOpen) {
+      // Don't auto-close, let user select role first
+      // User is authenticated but needs to choose merchant or personal
     }
-  }, [authenticated, setUserRole, closeLoginModal])
+  }, [authenticated, isLoginModalOpen])
 
   if (!isLoginModalOpen) return null
 
-  const handleMerchantAuth = () => {
-    // Set merchant role and close modal
-    setUserRole('merchant')
-    closeLoginModal()
+  const handleUserRole = () => {
+    // User selected personal/user role
+    if (authenticated || isConnected) {
+      setUserRole('user')
+      closeLoginModal()
+    } else {
+      // Not authenticated yet, trigger Privy
+      login()
+    }
+  }
+
+  const handleMerchantRole = () => {
+    // User selected merchant role
+    if (authenticated || isConnected) {
+      setUserRole('merchant')
+      closeLoginModal()
+    } else {
+      // Not authenticated yet, trigger Privy
+      login()
+    }
   }
 
   const handlePrivyLogin = () => {
@@ -91,10 +107,18 @@ export function LoginModal() {
               </p>
               
               {authenticated && (
-                <div className="text-center">
+                <div className="space-y-3">
                   <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
                     <p className="text-sm text-green-400">✓ Authenticated Successfully</p>
                   </div>
+                  <button
+                    onClick={handleUserRole}
+                    className="w-full px-4 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg hover:from-blue-600 hover:to-purple-600 transition-all font-semibold inline-flex items-center justify-center gap-2"
+                  >
+                    <User className="w-4 h-4" />
+                    Continue as Personal User
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
                 </div>
               )}
             </div>
@@ -130,10 +154,18 @@ export function LoginModal() {
               </div>
               
               {isConnected && (
-                <div className="text-center">
+                <div className="space-y-3">
                   <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
                     <p className="text-sm text-green-400">✓ Wallet Connected Successfully</p>
                   </div>
+                  <button
+                    onClick={handleUserRole}
+                    className="w-full px-4 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg hover:from-blue-600 hover:to-purple-600 transition-all font-semibold inline-flex items-center justify-center gap-2"
+                  >
+                    <User className="w-4 h-4" />
+                    Continue as Personal User
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
                 </div>
               )}
             </div>
@@ -157,11 +189,11 @@ export function LoginModal() {
               </div>
               
               <button
-                onClick={handleMerchantAuth}
+                onClick={handleMerchantRole}
                 className="w-full px-4 py-3 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-lg hover:from-orange-600 hover:to-red-600 transition-all font-semibold inline-flex items-center justify-center gap-2"
               >
                 <Store className="w-4 h-4" />
-                Authenticate as Merchant
+                {(authenticated || isConnected) ? 'Continue as Merchant' : 'Authenticate as Merchant'}
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>

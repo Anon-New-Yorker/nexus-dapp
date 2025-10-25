@@ -54,7 +54,11 @@ export function NavBar() {
   }
 
   const handleLogin = () => {
-    openLoginModal()
+    // Directly trigger Privy login instead of opening custom modal
+    if (!authenticated && !isConnected) {
+      // Show the custom modal for role selection
+      openLoginModal()
+    }
   }
 
   return (

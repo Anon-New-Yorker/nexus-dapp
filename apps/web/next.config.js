@@ -4,6 +4,15 @@ const nextConfig = {
   experimental: {
     esmExternals: false,
   },
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'cryptologos.cc',
+        pathname: '/logos/**',
+      },
+    ],
+  },
   webpack: (config) => {
     config.resolve.fallback = { fs: false, net: false, tls: false };
     

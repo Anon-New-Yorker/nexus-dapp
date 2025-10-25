@@ -7,6 +7,7 @@ import { baseSepolia } from 'wagmi/chains'
 import { QueryClientProvider, QueryClient } from '@tanstack/react-query'
 import { PrivyProvider } from '@privy-io/react-auth'
 import { UserProvider } from './context/UserContext'
+import { AvailProvider } from './context/AvailContext'
 
 const config = getDefaultConfig({
   appName: 'Agentic Payments',
@@ -33,7 +34,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
         <QueryClientProvider client={queryClient}>
           <RainbowKitProvider>
             <UserProvider>
-              {children}
+              <AvailProvider>
+                {children}
+              </AvailProvider>
             </UserProvider>
           </RainbowKitProvider>
         </QueryClientProvider>

@@ -4,10 +4,13 @@ import { useState } from 'react'
 import { ConnectButton } from '@rainbow-me/rainbowkit'
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
 import { parseUnits } from 'viem'
-import { Send, CheckCircle2, Loader2, Info, Wallet, ArrowRight } from 'lucide-react'
+import { Send, CheckCircle2, Loader2, Info, Wallet, ArrowRight, ExternalLink } from 'lucide-react'
 import { Toaster, toast } from 'sonner'
 import { NavBar } from '../components/NavBar'
 import { useUser } from '../context/UserContext'
+import { useAvail } from '../context/AvailContext'
+import { UnifiedBalance } from '../components/UnifiedBalance'
+import { PaymentMethodSelector } from '../components/PaymentMethodSelector'
 
 // Base Sepolia Testnet USDC (testnet token)
 const USDC_ADDRESS = '0x036CbD53842c5426634e7929541eC2318f3dCF7e'
@@ -96,6 +99,12 @@ export default function PayPage() {
               <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse"></div>
               <span className="text-orange-400 font-medium text-sm">TESTNET MODE - No real funds used</span>
             </div>
+          </div>
+
+          {/* Avail Nexus Integration */}
+          <div className="grid md:grid-cols-2 gap-6 mb-8">
+            <UnifiedBalance />
+            <PaymentMethodSelector />
           </div>
 
           <div className="grid md:grid-cols-2 gap-8">
@@ -274,25 +283,76 @@ export default function PayPage() {
                     <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500/20 to-green-600/10 flex items-center justify-center border border-green-500/30 flex-shrink-0">
                       <CheckCircle2 className="w-6 h-6 text-green-400" />
                     </div>
-                    <div className="flex-1">
+                    <div className="flex-1 min-w-0">
                       <h3 className="font-bold text-green-400 mb-2">Transaction Successful!</h3>
                       <p className="text-sm text-zinc-400 mb-4">
                         Your payment has been sent successfully
                       </p>
-                      <div className="mt-4">
-                        <button
-                          onClick={() => {
-                            const url = `https://sepolia.basescan.org/tx/${hash}`
-                            console.log('BaseScan button clicked, opening:', url)
-                            window.open(url, '_blank', 'noopener,noreferrer')
-                          }}
-                          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold inline-flex items-center gap-2 transition-all duration-200 shadow-lg hover:shadow-blue-500/50"
-                        >
-                          🔗 View on BaseScan (Sepolia)
-                        </button>
-                        <p className="text-xs text-zinc-500 mt-2">
-                          Transaction: <span className="font-mono text-blue-400">{hash}</span>
-                        </p>
+                      <div className="space-y-3">
+                        <div className="flex flex-col sm:flex-row gap-2">
+                          <button
+                            onClick={(e) => {
+                              console.log('BaseScan button clicked!')
+                              e.preventDefault()
+                              e.stopPropagation()
+                              const url = `https://sepolia.basescan.org/tx/${hash}`
+                              console.log('BaseScan button clicked, hash:', hash)
+                              console.log('BaseScan URL:', url)
+                              
+                              try {
+                                const newWindow = window.open(url, '_blank', 'noopener,noreferrer')
+                                if (newWindow) {
+                                  console.log('BaseScan window opened successfully')
+                                  toast.success('Opening BaseScan...')
+                                } else {
+                                  console.error('BaseScan window was blocked')
+                                  toast.error('Popup blocked! Please allow popups for this site.')
+                                }
+                              } catch (error) {
+                                console.error('BaseScan error:', error)
+                                toast.error('Failed to open BaseScan')
+                              }
+                            }}
+                            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold inline-flex items-center gap-2 transition-all duration-200 shadow-lg hover:shadow-blue-500/50 flex-1"
+                            style={{ zIndex: 9999, position: 'relative', pointerEvents: 'auto' }}
+                          >
+                            <ExternalLink className="w-4 h-4" />
+                            BaseScan
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              console.log('Blockscout button clicked!')
+                              e.preventDefault()
+                              e.stopPropagation()
+                              const url = `https://base-sepolia.blockscout.com/tx/${hash}`
+                              console.log('Blockscout button clicked, hash:', hash)
+                              console.log('Blockscout URL:', url)
+                              
+                              try {
+                                const newWindow = window.open(url, '_blank', 'noopener,noreferrer')
+                                if (newWindow) {
+                                  console.log('Blockscout window opened successfully')
+                                  toast.success('Opening Blockscout...')
+                                } else {
+                                  console.error('Blockscout window was blocked')
+                                  toast.error('Popup blocked! Please allow popups for this site.')
+                                }
+                              } catch (error) {
+                                console.error('Blockscout error:', error)
+                                toast.error('Failed to open Blockscout')
+                              }
+                            }}
+                            className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-semibold inline-flex items-center gap-2 transition-all duration-200 shadow-lg hover:shadow-purple-500/50 flex-1"
+                            style={{ zIndex: 9999, position: 'relative', pointerEvents: 'auto' }}
+                          >
+                            <ExternalLink className="w-4 h-4" />
+                            Blockscout
+                          </button>
+                        </div>
+                        <div className="text-xs text-zinc-500">
+                          <span className="block mb-1">Transaction:</span>
+                          <span className="font-mono text-blue-400 break-all">{hash}</span>
+                        </div>
                       </div>
                     </div>
                   </div>

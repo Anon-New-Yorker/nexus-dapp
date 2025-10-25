@@ -5,6 +5,7 @@ import { getDefaultConfig, RainbowKitProvider } from '@rainbow-me/rainbowkit'
 import { WagmiProvider } from 'wagmi'
 import { baseSepolia } from 'wagmi/chains'
 import { QueryClientProvider, QueryClient } from '@tanstack/react-query'
+import { PrivyProvider } from '@privy-io/react-auth'
 import { UserProvider } from './context/UserContext'
 import { AvailProvider } from './context/AvailContext'
 
@@ -19,16 +20,27 @@ const queryClient = new QueryClient()
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <WagmiProvider config={config}>
-      <QueryClientProvider client={queryClient}>
-        <RainbowKitProvider>
-          <UserProvider>
-            <AvailProvider>
-              {children}
-            </AvailProvider>
-          </UserProvider>
-        </RainbowKitProvider>
-      </QueryClientProvider>
-    </WagmiProvider>
+    <PrivyProvider
+      appId={process.env.NEXT_PUBLIC_PRIVY_APP_ID || 'cm6cvvtji00yvgj5e7b7jvprd'}
+      config={{
+        loginMethods: ['email', 'google', 'wallet'],
+        appearance: {
+          theme: 'dark',
+          accentColor: '#676FFF',
+        },
+      }}
+    >
+      <WagmiProvider config={config}>
+        <QueryClientProvider client={queryClient}>
+          <RainbowKitProvider>
+            <UserProvider>
+              <AvailProvider>
+                {children}
+              </AvailProvider>
+            </UserProvider>
+          </RainbowKitProvider>
+        </QueryClientProvider>
+      </WagmiProvider>
+    </PrivyProvider>
   )
 }

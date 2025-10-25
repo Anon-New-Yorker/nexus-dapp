@@ -12,34 +12,30 @@ export function LoginModal() {
   const { address, isConnected } = useAccount()
   const { login, authenticated } = usePrivy()
   const [isConnecting, setIsConnecting] = useState(false)
+  const [intendedRole, setIntendedRole] = useState<'user' | 'merchant' | null>(null)
 
-  // Handle wallet connection success - only if modal is open
+  // Handle authentication success and auto-set role if intended role was selected
   useEffect(() => {
-    if (isConnected && address && isLoginModalOpen) {
-      setIsConnecting(false)
-      // Don't auto-set role, let user choose
-      // Just close the modal if they connected via direct wallet
-      // closeLoginModal()
+    if ((authenticated || isConnected) && intendedRole && isLoginModalOpen) {
+      // User was authenticated/connected and had selected a role beforehand
+      setUserRole(intendedRole)
+      closeLoginModal()
+      setIntendedRole(null) // Reset
     }
-  }, [isConnected, address, isLoginModalOpen])
-
-  // Handle Privy authentication success - only if modal is open
-  useEffect(() => {
-    if (authenticated && isLoginModalOpen) {
-      // Don't auto-close, let user select role first
-      // User is authenticated but needs to choose merchant or personal
-    }
-  }, [authenticated, isLoginModalOpen])
+  }, [authenticated, isConnected, intendedRole, isLoginModalOpen, setUserRole, closeLoginModal])
 
   if (!isLoginModalOpen) return null
 
   const handleUserRole = () => {
     // User selected personal/user role
     if (authenticated || isConnected) {
+      // Already authenticated, set role immediately
       setUserRole('user')
       closeLoginModal()
+      setIntendedRole(null)
     } else {
-      // Not authenticated yet, trigger Privy
+      // Not authenticated yet, save intended role and trigger Privy
+      setIntendedRole('user')
       login()
     }
   }
@@ -47,10 +43,13 @@ export function LoginModal() {
   const handleMerchantRole = () => {
     // User selected merchant role
     if (authenticated || isConnected) {
+      // Already authenticated, set role immediately
       setUserRole('merchant')
       closeLoginModal()
+      setIntendedRole(null)
     } else {
-      // Not authenticated yet, trigger Privy
+      // Not authenticated yet, save intended role and trigger Privy
+      setIntendedRole('merchant')
       login()
     }
   }

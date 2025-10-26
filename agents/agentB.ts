@@ -1,5 +1,5 @@
 import { subscribeToTopicWithErrorHandling } from "./messageBus.js";
-import { client, submitMessage, config } from "./hederaClient.js";
+import { client, submitMessage, config, checkSufficientBalance } from "./hederaClient.js";
 import { TransferTransaction, Hbar } from "@hashgraph/sdk";
 import { getMerchantAccount, getMerchant } from "./merchantRegistry.js";
 import type { SettlementTrigger, SettlementConfirmed } from "./types.js";
@@ -20,6 +20,12 @@ async function processSettlementTrigger(msg: SettlementTrigger): Promise<void> {
 
         const merchantAccountId = getMerchantAccount(msg.merchantId);
         console.log(`💰 Processing settlement: ${msg.amount} ${msg.token} to ${merchantAccountId}`);
+
+        // Check if we have sufficient balance before attempting transfer
+        const hasEnoughBalance = await checkSufficientBalance(config.hederaAccountId, msg.amount);
+        if (!hasEnoughBalance) {
+            throw new Error(`Insufficient HBAR balance. Required: ${msg.amount} HBAR`);
+        }
 
         // Execute the transfer
         const transfer = await new TransferTransaction()

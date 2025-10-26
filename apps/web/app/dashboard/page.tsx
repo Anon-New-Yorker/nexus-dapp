@@ -8,11 +8,13 @@ import { MerchantDashboard } from './MerchantDashboard'
 import { UserDashboard } from './UserDashboard'
 import { UnifiedBalance } from '../components/UnifiedBalance'
 import { PaymentMethodSelector } from '../components/PaymentMethodSelector'
+import { useAvail } from '../context/AvailContext'
 import { Wallet } from 'lucide-react'
 
 export default function Dashboard() {
   const { userRole, openLoginModal } = useUser()
   const { isConnected } = useAccount()
+  const { unifiedBalance, refreshBalances, isLoading } = useAvail()
   const { authenticated } = usePrivy()
 
   const isLoggedIn = userRole
@@ -22,7 +24,7 @@ export default function Dashboard() {
       <>
         <div className="gradient-bg fixed inset-0 -z-10"></div>
         <NavBar />
-        
+
         <div className="min-h-screen px-6 py-8 pt-24">
           <div className="max-w-4xl mx-auto">
             <div className="glass-card p-12 text-center fade-in-up">
@@ -50,7 +52,7 @@ export default function Dashboard() {
       <>
         <div className="gradient-bg fixed inset-0 -z-10"></div>
         <NavBar />
-        
+
         <div className="min-h-screen px-6 py-8 pt-24">
           <div className="max-w-4xl mx-auto">
             <div className="glass-card p-12 text-center fade-in-up">
@@ -77,15 +79,19 @@ export default function Dashboard() {
     <>
       <div className="gradient-bg fixed inset-0 -z-10"></div>
       <NavBar />
-      
+
       <div className="min-h-screen px-6 py-8 pt-24">
         <div className="max-w-7xl mx-auto">
           {/* Avail Nexus Integration Section */}
-          <div className="grid md:grid-cols-2 gap-6 mb-8">
-            <UnifiedBalance />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <UnifiedBalance
+              balance={unifiedBalance}
+              isLoading={isLoading}
+              onRefresh={refreshBalances}
+            />
             <PaymentMethodSelector />
           </div>
-          
+
           {/* Role-specific Dashboard */}
           {userRole === 'merchant' ? <MerchantDashboard /> : <UserDashboard />}
         </div>

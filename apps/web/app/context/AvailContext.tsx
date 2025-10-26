@@ -97,7 +97,7 @@ export function AvailProvider({ children }: { children: ReactNode }) {
           balance: balanceInEth.toFixed(4),
           address: address,
           decimals: balance.decimals,
-          logoUrl: 'https://cryptologos.cc/logos/ethereum-eth-logo.png'
+          logoUrl: 'https://assets.coingecko.com/coins/images/279/large/ethereum.png'
         }
         paymentMethodsList.push(ethPaymentMethod)
       }
@@ -115,7 +115,7 @@ export function AvailProvider({ children }: { children: ReactNode }) {
           balance: usdcBalanceFormatted.toFixed(2),
           address: address,
           decimals: 6,
-          logoUrl: 'https://cryptologos.cc/logos/usd-coin-usdc-logo.png'
+          logoUrl: 'https://assets.coingecko.com/coins/images/6319/large/USD_Coin_icon.png'
         }
         paymentMethodsList.push(usdcPaymentMethod)
       }
@@ -147,7 +147,7 @@ export function AvailProvider({ children }: { children: ReactNode }) {
         balance: balanceInEth.toFixed(4),
         address: address,
         decimals: balance.decimals,
-        logoUrl: 'https://cryptologos.cc/logos/ethereum-eth-logo.png'
+        logoUrl: 'https://assets.coingecko.com/coins/images/279/large/ethereum.png'
       }
       
       setPaymentMethods([walletPaymentMethod])
@@ -169,16 +169,42 @@ export function AvailProvider({ children }: { children: ReactNode }) {
     try {
       // Force refetch of both ETH and USDC balances
       console.log('Refetching ETH and USDC balances...')
-      const [ethResult, usdcResult] = await Promise.all([
-        refetchBalance(),
-        refetchUsdc()
-      ])
       
-      console.log('Refetch results:', { ethResult, usdcResult })
+      // Add a small delay to ensure blockchain has updated
+      await new Promise(resolve => setTimeout(resolve, 2000))
       
-      // Use the fresh data from refetch
-      const freshBalance = ethResult.data
-      const freshUsdcBalance = usdcResult.data
+      console.log('Starting aggressive balance refresh...')
+      
+      // Try multiple times to ensure we get fresh data
+      let freshBalance, freshUsdcBalance
+      let attempts = 0
+      const maxAttempts = 3
+      
+      while (attempts < maxAttempts) {
+        console.log(`Balance refresh attempt ${attempts + 1}/${maxAttempts}`)
+        
+        const [ethResult, usdcResult] = await Promise.all([
+          refetchBalance(),
+          refetchUsdc()
+        ])
+        
+        console.log('Refetch results:', { ethResult, usdcResult })
+        
+        freshBalance = ethResult.data
+        freshUsdcBalance = usdcResult.data
+        
+        // If we got data, break
+        if (freshBalance || freshUsdcBalance !== undefined) {
+          console.log('Got fresh balance data, breaking loop')
+          break
+        }
+        
+        attempts++
+        if (attempts < maxAttempts) {
+          console.log(`No data on attempt ${attempts}, waiting 1 second before retry...`)
+          await new Promise(resolve => setTimeout(resolve, 1000))
+        }
+      }
       
       if (address && (freshBalance || freshUsdcBalance !== undefined)) {
         let totalUsdValue = 0
@@ -198,7 +224,7 @@ export function AvailProvider({ children }: { children: ReactNode }) {
             balance: balanceInEth.toFixed(4),
             address: address,
             decimals: freshBalance.decimals,
-            logoUrl: 'https://cryptologos.cc/logos/ethereum-eth-logo.png'
+            logoUrl: 'https://assets.coingecko.com/coins/images/279/large/ethereum.png'
           }
           paymentMethodsList.push(ethPaymentMethod)
         }
@@ -216,7 +242,7 @@ export function AvailProvider({ children }: { children: ReactNode }) {
             balance: usdcBalanceFormatted.toFixed(2),
             address: address,
             decimals: 6,
-            logoUrl: 'https://cryptologos.cc/logos/usd-coin-usdc-logo.png'
+            logoUrl: 'https://assets.coingecko.com/coins/images/6319/large/USD_Coin_icon.png'
           }
           paymentMethodsList.push(usdcPaymentMethod)
         }
@@ -271,7 +297,7 @@ export function AvailProvider({ children }: { children: ReactNode }) {
         balance: balanceInEth.toFixed(4),
         address: address,
         decimals: balance.decimals,
-        logoUrl: 'https://cryptologos.cc/logos/ethereum-eth-logo.png'
+        logoUrl: 'https://assets.coingecko.com/coins/images/279/large/ethereum.png'
       }
       
       setPaymentMethods([walletPaymentMethod])

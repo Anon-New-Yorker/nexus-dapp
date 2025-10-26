@@ -2,7 +2,6 @@
 
 import { useUser } from '../context/UserContext'
 import { useAccount } from 'wagmi'
-import { usePrivy } from '@privy-io/react-auth'
 import { NavBar } from '../components/NavBar'
 import { MerchantDashboard } from './MerchantDashboard'
 import { UserDashboard } from './UserDashboard'
@@ -13,7 +12,6 @@ import { Wallet } from 'lucide-react'
 export default function Dashboard() {
   const { userRole, openLoginModal } = useUser()
   const { isConnected } = useAccount()
-  const { authenticated } = usePrivy()
 
   const isLoggedIn = userRole
 

@@ -75,9 +75,9 @@ export function NavBar() {
               )}
               <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10">
                 <User className="w-4 h-4" />
-                <span className="font-mono text-xs">
-                  {address?.slice(0, 6)}...{address?.slice(-4)}
-                </span>
+                    <span className="font-mono text-xs">
+                      {address?.slice(0, 6)}...{address?.slice(-4)}
+                    </span>
               </div>
               <button
                 onClick={handleLogout}

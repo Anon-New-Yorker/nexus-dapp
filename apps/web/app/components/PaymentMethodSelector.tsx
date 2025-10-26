@@ -4,13 +4,11 @@ import { motion } from 'framer-motion'
 import { Check, ExternalLink, Wallet } from 'lucide-react'
 import { useAvail } from '../context/AvailContext'
 import { useAccount } from 'wagmi'
-import { usePrivy } from '@privy-io/react-auth'
 import Image from 'next/image'
 
 export function PaymentMethodSelector() {
   const { paymentMethods, selectedPaymentMethod, setSelectedPaymentMethod, isLoading } = useAvail()
   const { address } = useAccount()
-  const { authenticated } = usePrivy()
 
   if (!address) {
     return (
@@ -110,9 +108,9 @@ export function PaymentMethodSelector() {
                 </div>
               </div>
               
-              <div className="mt-2 text-xs text-zinc-500 font-mono">
-                {method.address.slice(0, 6)}...{method.address.slice(-4)}
-              </div>
+                  <div className="mt-2 text-xs text-zinc-500 font-mono">
+                    {method.address.slice(0, 6)}...{method.address.slice(-4)}
+                  </div>
             </motion.div>
           ))}
         </div>

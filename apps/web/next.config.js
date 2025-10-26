@@ -11,6 +11,11 @@ const nextConfig = {
         hostname: 'cryptologos.cc',
         pathname: '/logos/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'assets.coingecko.com',
+        pathname: '/coins/images/**',
+      },
     ],
   },
   webpack: (config) => {

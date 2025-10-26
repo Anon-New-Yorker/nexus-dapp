@@ -10,31 +10,32 @@ import { parseUnits, formatUnits } from 'viem'
 
 interface AgenticPaymentProps {
   onPaymentComplete?: (txHash: string) => void
+  onReset?: () => void
 }
 
-export function AgenticPayment({ onPaymentComplete }: AgenticPaymentProps) {
+function AgenticPaymentInner({ onPaymentComplete, onReset }: AgenticPaymentProps) {
   const { address } = useAccount()
   const { unifiedBalance, paymentMethods, selectedPaymentMethod, refreshBalances } = useAvail()
   const [message, setMessage] = useState('0x76520dB38f6Dd54a5c8F10a9EB130b8171A1715d 5 USDC on base')
   const [isProcessing, setIsProcessing] = useState(false)
   const [step, setStep] = useState<'input' | 'processing' | 'success' | 'error'>('input')
-  const [txHash, setTxHash] = useState<string | null>(null)
-  const [confirmationTimeout, setConfirmationTimeout] = useState<NodeJS.Timeout | null>(null)
-  
-  // USDC contract address on Base Sepolia
-  const USDC_ADDRESS = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913'
-  
-  const { writeContract, isPending: isWritePending } = useWriteContract()
+  const [transactionStartTime, setTransactionStartTime] = useState<number | null>(null)
+  const [formKey, setFormKey] = useState(0)
+  const [showTransactionHash, setShowTransactionHash] = useState(false)
+
+  // USDC contract address on Base Sepolia Testnet
+  const USDC_ADDRESS = '0x036CbD53842c5426634e7929541eC2318f3dCF7e'
+
+  const { writeContract, isPending: isWritePending, data: writeData } = useWriteContract()
   const { isLoading: isConfirming, isSuccess: isConfirmed, error: txError } = useWaitForTransactionReceipt({
-    hash: txHash as `0x${string}`,
-    enabled: !!txHash,
+    hash: writeData,
   })
 
   const parseMessage = (message: string) => {
     // Parse message like "0x76520dB38f6Dd54a5c8F10a9EB130b8171A1715d 5 USDC on base"
     const regex = /(0x[a-fA-F0-9]{40})\s+(\d+(?:\.\d+)?)\s+(USDC|ETH|USDT)\s+on\s+(base|optimism|arbitrum|polygon)/i
     const match = message.match(regex)
-    
+
     if (!match) {
       throw new Error('Invalid message format. Use: "0x... 5 USDC on base"')
     }
@@ -49,10 +50,10 @@ export function AgenticPayment({ onPaymentComplete }: AgenticPaymentProps) {
 
   const checkBalance = (requiredAmount: number, token: string, network: string) => {
     // Check if we have the exact token and network
-    const exactMethod = paymentMethods.find(method => 
+    const exactMethod = paymentMethods.find(method =>
       method.symbol === token && method.network.toLowerCase() === network
     )
-    
+
     if (exactMethod) {
       const availableBalance = parseFloat(exactMethod.balance.replace(/,/g, ''))
       if (availableBalance >= requiredAmount) {
@@ -61,14 +62,14 @@ export function AgenticPayment({ onPaymentComplete }: AgenticPaymentProps) {
     }
 
     // If no exact match or insufficient balance, check if we have ETH that can be swapped
-    const ethMethod = paymentMethods.find(method => 
+    const ethMethod = paymentMethods.find(method =>
       method.symbol === 'ETH'
     )
-    
+
     if (ethMethod) {
       const ethBalance = parseFloat(ethMethod.balance.replace(/,/g, ''))
-          const ethValueInUsd = ethBalance * 3000 // ETH to USD conversion (Base Sepolia testnet price)
-      
+      const ethValueInUsd = ethBalance * 3000 // ETH to USD conversion (Base Sepolia testnet price)
+
       if (ethValueInUsd >= requiredAmount) {
         // Simulate having the required token after swap
         return {
@@ -89,21 +90,21 @@ export function AgenticPayment({ onPaymentComplete }: AgenticPaymentProps) {
 
   const findSwapMethod = (requiredAmount: number, targetToken: string, targetNetwork: string) => {
     // Look for ETH that can be swapped to the target token
-    const ethMethod = paymentMethods.find(method => 
+    const ethMethod = paymentMethods.find(method =>
       method.symbol === 'ETH'
     )
-    
+
     if (ethMethod) {
       const ethBalance = parseFloat(ethMethod.balance.replace(/,/g, ''))
-          const ethValueInUsd = ethBalance * 3000 // ETH to USD conversion (Base Sepolia testnet price)
-      
+      const ethValueInUsd = ethBalance * 3000 // ETH to USD conversion (Base Sepolia testnet price)
+
       if (ethValueInUsd >= requiredAmount) {
         return ethMethod
       }
     }
 
     // If no ETH available, look for any alternative tokens
-    const alternativeMethods = paymentMethods.filter(method => 
+    const alternativeMethods = paymentMethods.filter(method =>
       method.symbol !== targetToken
     )
 
@@ -132,99 +133,89 @@ export function AgenticPayment({ onPaymentComplete }: AgenticPaymentProps) {
     try {
       // Parse the message
       const { recipient, amount, token, network } = parseMessage(message)
-      
+
       console.log('Processing payment:', { recipient, amount, token, network })
-      
+
       // Check if user has the required token
       let paymentMethod
       try {
         paymentMethod = checkBalance(amount, token, network)
         console.log('Found payment method:', paymentMethod)
-      } catch (error) {
-        console.log('No direct token found, looking for swap method:', error)
-        // If insufficient balance, try to find alternative tokens for swapping
-        const swapMethod = findSwapMethod(amount, token, network)
-        console.log('Found swap method:', swapMethod)
-        
-        // For now, we'll simulate the swap but in a real implementation,
-        // this would involve calling a DEX contract
-        toast.info(`Swapping ${swapMethod.symbol} to ${token}...`)
-        await new Promise(resolve => setTimeout(resolve, 2000)) // Simulate swap delay
-        
-        // After swap, we should have the required token
-        paymentMethod = {
-          ...swapMethod,
-          symbol: token,
-          balance: amount.toString()
+
+        // Validate that user actually has the required token balance
+        if (paymentMethod.symbol !== token) {
+          throw new Error(`You don't have ${token} tokens. Please get some ${token} first.`)
         }
+
+        const availableBalance = parseFloat(paymentMethod.balance.replace(/,/g, ''))
+        if (availableBalance < amount) {
+          throw new Error(`Insufficient ${token} balance. You have ${availableBalance} ${token}, need ${amount} ${token}`)
+        }
+
+      } catch (error) {
+        console.log('Balance check failed:', error)
+        throw new Error(`Cannot process payment: ${error instanceof Error ? error.message : 'Unknown error'}`)
       }
 
       // Execute real USDC transfer
       if (token === 'USDC' && network === 'base') {
         toast.info(`Sending ${amount} USDC to ${recipient}...`)
-        
+
         // Convert amount to wei (USDC has 6 decimals)
         const amountInWei = parseUnits(amount.toString(), 6)
-        
+
         // Execute the transfer
-        const hash = await writeContract({
-          address: USDC_ADDRESS as `0x${string}`,
-          abi: [
-            {
-              name: 'transfer',
-              type: 'function',
-              stateMutability: 'nonpayable',
-              inputs: [
-                { name: 'to', type: 'address' },
-                { name: 'amount', type: 'uint256' }
-              ],
-              outputs: [{ name: '', type: 'bool' }]
+        try {
+          console.log('🚀 Submitting USDC transfer:', {
+            to: recipient,
+            amount: amountInWei.toString(),
+            contract: USDC_ADDRESS,
+            userAddress: address
+          })
+
+          await writeContract({
+            address: USDC_ADDRESS as `0x${string}`,
+            abi: [
+              {
+                name: 'transfer',
+                type: 'function',
+                stateMutability: 'nonpayable',
+                inputs: [
+                  { name: 'to', type: 'address' },
+                  { name: 'amount', type: 'uint256' }
+                ],
+                outputs: [{ name: '', type: 'bool' }]
+              }
+            ],
+            functionName: 'transfer',
+            args: [recipient as `0x${string}`, amountInWei],
+          })
+
+          console.log('✅ Transaction submitted successfully - waiting for hash from useWriteContract')
+          setShowTransactionHash(true)
+
+        } catch (writeError) {
+          console.error('❌ Failed to submit transaction:', writeError)
+
+          // Provide more specific error messages
+          if (writeError instanceof Error) {
+            if (writeError.message.includes('insufficient funds')) {
+              throw new Error('Insufficient USDC balance for this transaction')
+            } else if (writeError.message.includes('user rejected')) {
+              throw new Error('Transaction was rejected by user')
+            } else if (writeError.message.includes('gas')) {
+              throw new Error('Transaction failed due to gas issues')
+            } else {
+              throw new Error(`Transaction failed: ${writeError.message}`)
             }
-          ],
-          functionName: 'transfer',
-          args: [recipient as `0x${string}`, amountInWei],
-        })
-        
-            setTxHash(hash)
-            toast.info(`Transaction submitted: ${hash}`)
-            
-            // Set a timeout for transaction confirmation (10 seconds)
-            const timeout = setTimeout(() => {
-              console.log('Transaction confirmation timeout - assuming success')
-              setStep('success')
-              setIsProcessing(false)
-              toast.success(`Payment successful! Transaction: ${hash}`)
-              
-              // Force refresh balances immediately
-              if (refreshBalances) {
-                console.log('Force refreshing balances after timeout')
-                refreshBalances()
-              }
-              
-              if (onPaymentComplete) {
-                onPaymentComplete(hash)
-              }
-            }, 10000) // 10 seconds timeout
-            
-            setConfirmationTimeout(timeout)
-            
-            // Wait for confirmation
-            toast.info('Waiting for transaction confirmation...')
-        
-      } else {
-        // For non-USDC tokens or other networks, simulate for now
-        toast.info(`Processing ${amount} ${token} to ${recipient} on ${network}...`)
-        await new Promise(resolve => setTimeout(resolve, 3000)) // Simulate processing
-        
-        // Generate mock transaction hash
-        const mockTxHash = `0x${Math.random().toString(16).substr(2, 64)}`
-        setTxHash(mockTxHash)
-        setStep('success')
-        toast.success(`Payment successful! Transaction: ${mockTxHash}`)
-        
-        if (onPaymentComplete) {
-          onPaymentComplete(mockTxHash)
+          } else {
+            throw new Error('Transaction submission failed: Unknown error')
+          }
         }
+
+      } else {
+        // For non-USDC tokens or other networks, show error
+        throw new Error(`Payment method ${token} on ${network} is not supported yet. Please use USDC on Base.`)
       }
 
     } catch (error) {
@@ -238,65 +229,72 @@ export function AgenticPayment({ onPaymentComplete }: AgenticPaymentProps) {
 
   // Handle transaction confirmation
   useEffect(() => {
-    console.log('Transaction confirmation effect:', { isConfirmed, txHash, isConfirming, txError })
-    
-    if (isConfirmed && txHash) {
-      console.log('Transaction confirmed! Moving to success state')
-      
-      // Clear the timeout since transaction is confirmed
-      if (confirmationTimeout) {
-        clearTimeout(confirmationTimeout)
-        setConfirmationTimeout(null)
-      }
-      
+    console.log('🔄 Transaction confirmation effect:', {
+      isConfirmed,
+      writeData,
+      isConfirming,
+      txError,
+      isWritePending,
+      step
+    })
+
+    if (isConfirmed && writeData) {
+      console.log('✅ Transaction confirmed! Moving to success state')
+
+      // Transaction confirmed - show success immediately
       setStep('success')
       setIsProcessing(false)
-      toast.success(`Payment successful! Transaction: ${txHash}`)
-      
-      // Refresh balances after successful transaction
-      if (refreshBalances) {
-        console.log('Refreshing balances after successful transaction')
-        refreshBalances()
-      }
-      
+      toast.success(`Payment successful! Transaction: ${writeData}`)
+
+      // Don't update UI directly - let natural refresh cycle handle it
+      console.log('Transaction confirmed - UI will update on next natural refresh')
+
       if (onPaymentComplete) {
-        onPaymentComplete(txHash)
+        onPaymentComplete(writeData)
       }
-    } else if (txError && txHash) {
-      console.error('Transaction failed:', txError)
-      
-      // Clear the timeout since transaction failed
-      if (confirmationTimeout) {
-        clearTimeout(confirmationTimeout)
-        setConfirmationTimeout(null)
-      }
-      
+
+    } else if (txError && writeData) {
+      console.error('❌ Transaction failed:', txError)
+
+      // Transaction failed - user rejected or error occurred
       setStep('error')
       setIsProcessing(false)
       toast.error(`Transaction failed: ${txError.message}`)
-    }
-  }, [isConfirmed, txHash, isConfirming, txError, refreshBalances, onPaymentComplete, confirmationTimeout])
+    } else if (writeData && !isConfirming && !isConfirmed && !txError) {
+      console.log('⏳ Transaction submitted but not yet confirmed:', writeData)
 
-  // Cleanup timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (confirmationTimeout) {
-        clearTimeout(confirmationTimeout)
+      // Fallback timeout to prevent endless waiting (5 minutes)
+      if (transactionStartTime && Date.now() - transactionStartTime > 300000) {
+        console.warn('⚠️ Transaction timeout - taking too long to confirm')
+        setStep('error')
+        setIsProcessing(false)
+        toast.error('Transaction is taking too long to confirm. Please check your wallet and try again.')
       }
     }
-  }, [confirmationTimeout])
+  }, [isConfirmed, writeData, isConfirming, txError, isWritePending, step, onPaymentComplete, transactionStartTime, showTransactionHash])
+
+  // Real transaction processing - no fake agent updates
+
+  // No timeout cleanup needed - we wait indefinitely for user consent
 
   const resetForm = () => {
-    setMessage('')
-    setStep('input')
-    setIsProcessing(false)
-    setTxHash(null)
-    
-    // Clear any pending timeout
-    if (confirmationTimeout) {
-      clearTimeout(confirmationTimeout)
-      setConfirmationTimeout(null)
+    console.log('🔄 Resetting form for new payment')
+    console.log('Current state before reset:', { step, writeData, showTransactionHash, formKey })
+
+    // Call the parent reset function to completely remount the component
+    if (onReset) {
+      onReset()
+    } else {
+      // Fallback to local reset
+      setMessage('')
+      setStep('input')
+      setIsProcessing(false)
+      setTransactionStartTime(null)
+      setShowTransactionHash(false)
+      setFormKey(prev => prev + 1)
     }
+
+    console.log('✅ Form reset complete')
   }
 
   if (!address) {
@@ -313,7 +311,8 @@ export function AgenticPayment({ onPaymentComplete }: AgenticPaymentProps) {
   }
 
   return (
-    <motion.div 
+    <motion.div
+      key={formKey}
       className="glass-card p-6 fade-in-up"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
@@ -373,57 +372,44 @@ export function AgenticPayment({ onPaymentComplete }: AgenticPaymentProps) {
         </div>
       )}
 
-          {step === 'processing' && (
-            <div className="text-center py-8">
-              <Loader2 className="w-12 h-12 text-purple-400 animate-spin mx-auto mb-4" />
-              <h3 className="text-lg font-semibold mb-2">
-                {isWritePending ? 'Submitting Transaction...' : isConfirming ? 'Confirming Transaction...' : 'Processing Payment'}
-              </h3>
-              <p className="text-zinc-400">
-                {isWritePending ? 'Please confirm the transaction in your wallet' : 
-                 isConfirming ? 'Waiting for blockchain confirmation...' : 
-                 'Checking balance, swapping tokens if needed, and sending payment...'}
-              </p>
-              {txHash && (
-                <div className="mt-4 p-3 bg-zinc-800/50 rounded-lg">
-                  <p className="text-sm text-zinc-400">Transaction Hash:</p>
-                  <p className="text-xs font-mono text-blue-400 break-all">{txHash}</p>
-                </div>
-              )}
-              <div className="mt-6 space-y-3">
-                <button
-                  onClick={() => {
-                    console.log('Manual transaction check triggered')
-                    setStep('success')
-                    setIsProcessing(false)
-                    toast.success(`Payment successful! Transaction: ${txHash}`)
-                    
-                    // Force refresh balances
-                    if (refreshBalances) {
-                      console.log('Manual refresh triggered')
-                      refreshBalances()
-                    }
-                    
-                    if (onPaymentComplete && txHash) {
-                      onPaymentComplete(txHash)
-                    }
-                  }}
-                  className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold text-sm transition-colors"
-                >
-                  ✓ Transaction Confirmed (Manual)
-                </button>
-                <p className="text-xs text-zinc-500">
-                  If you see the transaction confirmed in MetaMask, click this button
-                </p>
-              </div>
+      {step === 'processing' && (
+        <div className="text-center py-8">
+          <Loader2 className="w-12 h-12 text-purple-400 animate-spin mx-auto mb-4" />
+          <h3 className="text-lg font-semibold mb-2">
+            {isWritePending ? 'Submitting Transaction...' : isConfirming ? 'Confirming Transaction...' : 'Processing Payment...'}
+          </h3>
+          <p className="text-zinc-400">
+            {isWritePending ? 'Please confirm the transaction in your wallet' :
+              isConfirming ? 'Waiting for blockchain confirmation...' :
+                'Processing your payment...'}
+          </p>
+          {writeData && showTransactionHash && step === 'processing' && (
+            <div className="mt-4 p-3 bg-zinc-800/50 rounded-lg">
+              <p className="text-sm text-zinc-400">Transaction Hash:</p>
+              <p className="text-xs font-mono text-blue-400 break-all">{writeData}</p>
             </div>
           )}
+          <div className="mt-6 space-y-3">
+            <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
+              <p className="text-sm text-blue-400">
+                🔄 Agent is monitoring your transaction in real-time...
+              </p>
+              <p className="text-xs text-blue-300 mt-1">
+                The agent will automatically detect when your transaction is confirmed or fails.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {step === 'success' && (
         <div className="text-center py-8">
           <CheckCircle2 className="w-12 h-12 text-green-400 mx-auto mb-4" />
           <h3 className="text-lg font-semibold mb-2 text-green-400">Payment Successful!</h3>
           <p className="text-zinc-400 mb-4">Your payment has been processed and sent.</p>
+          <p className="text-xs text-zinc-500 mb-4">
+            Your wallet balance will update automatically on the next refresh.
+          </p>
           <button
             onClick={resetForm}
             className="glow-button px-6 py-2 rounded-lg font-semibold"
@@ -447,5 +433,22 @@ export function AgenticPayment({ onPaymentComplete }: AgenticPaymentProps) {
         </div>
       )}
     </motion.div>
+  )
+}
+
+export function AgenticPayment({ onPaymentComplete }: AgenticPaymentProps) {
+  const [resetKey, setResetKey] = useState(0)
+
+  const handleReset = () => {
+    console.log('🔄 Forcing complete component reset')
+    setResetKey(prev => prev + 1)
+  }
+
+  return (
+    <AgenticPaymentInner
+      key={resetKey}
+      onPaymentComplete={onPaymentComplete}
+      onReset={handleReset}
+    />
   )
 }

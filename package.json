@@ -9,7 +9,10 @@
     "agents:start": "tsx agents/index.ts",
     "agents:demo": "tsx agents/demo.ts",
     "agents:test": "tsx agents/test.ts",
-    "agents:simple-test": "tsx agents/simple-test.ts"
+    "agents:simple-test": "tsx agents/simple-test.ts",
+    "agents:test-mode": "tsx agents/test-mode.ts",
+    "agents:setup-topics": "tsx agents/setup-topics.ts",
+    "agents:demo-script": "bash agents/demo-script.sh"
   },
   "keywords": [],
   "author": "",

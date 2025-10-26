@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "cd apps/web && npm run dev",
-    "build": "cd apps/web && npm run build",
+    "build": "npm install --legacy-peer-deps && cd apps/web && npm install --legacy-peer-deps && npm run build",
     "build:cloudflare": "npm install --legacy-peer-deps && cd apps/web && npm install --legacy-peer-deps && npm run build",
     "test": "echo \"Error: no test specified\" && exit 1",
     "agents:start": "tsx agents/index.ts",

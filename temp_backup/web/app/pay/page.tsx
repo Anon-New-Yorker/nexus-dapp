@@ -4,14 +4,10 @@ import { useState } from 'react'
 import { ConnectButton } from '@rainbow-me/rainbowkit'
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
 import { parseUnits } from 'viem'
-import { Send, CheckCircle2, Loader2, Info, Wallet, ArrowRight, ExternalLink } from 'lucide-react'
+import { Send, CheckCircle2, Loader2, Info, Wallet, ArrowRight } from 'lucide-react'
 import { Toaster, toast } from 'sonner'
 import { NavBar } from '../components/NavBar'
 import { useUser } from '../context/UserContext'
-import { useAvail } from '../context/AvailContext'
-import { UnifiedBalance } from '../components/UnifiedBalance'
-import { PaymentMethodSelector } from '../components/PaymentMethodSelector'
-import { AgenticPayment } from '../components/AgenticPayment'
 
 // Base Sepolia Testnet USDC (testnet token)
 const USDC_ADDRESS = '0x036CbD53842c5426634e7929541eC2318f3dCF7e'
@@ -102,42 +98,42 @@ export default function PayPage() {
             </div>
           </div>
 
-          {/* Avail Nexus Integration */}
-          <div className="grid md:grid-cols-2 gap-6 mb-8">
-            <UnifiedBalance />
-            <PaymentMethodSelector />
-          </div>
-
-          {/* Agentic Payments */}
-          <div className="mb-8">
-            <AgenticPayment />
-          </div>
-
           <div className="grid md:grid-cols-2 gap-8">
             {/* Left Column - Payment Form */}
             <div className="space-y-6">
-                  {/* Wallet Connection Card */}
-                  <div className="glass-card p-6 fade-in-up">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500/20 to-purple-500/10 flex items-center justify-center border border-blue-500/30">
-                        <Wallet className="w-5 h-5 text-blue-400" />
-                      </div>
-                      <div className="flex-1">
-                        <div className="font-semibold mb-0.5">Wallet</div>
-                        {isConnected && address ? (
-                          <div className="text-sm text-zinc-400 font-mono">
-                            {address.slice(0, 6)}...{address.slice(-4)}
-                          </div>
-                        ) : (
-                          <div className="text-sm text-zinc-400">Not connected</div>
-                        )}
-                      </div>
-                      <ConnectButton />
-                    </div>
+              {/* Wallet Connection Card */}
+              <div className="glass-card p-6 fade-in-up">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500/20 to-purple-500/10 flex items-center justify-center border border-blue-500/30">
+                    <Wallet className="w-5 h-5 text-blue-400" />
                   </div>
+                  <div className="flex-1">
+                    <div className="font-semibold mb-0.5">Wallet</div>
+                    {isConnected ? (
+                      <div className="text-sm text-zinc-400 font-mono">
+                        {address?.slice(0, 6)}...{address?.slice(-4)}
+                      </div>
+                    ) : (
+                      <div className="text-sm text-zinc-400">Not connected</div>
+                    )}
+                  </div>
+                  {!isConnected || !address ? (
+                    <button
+                      onClick={openLoginModal}
+                      className="px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg hover:from-blue-600 hover:to-purple-600 transition-all font-semibold text-sm"
+                    >
+                      Connect Wallet
+                    </button>
+                  ) : (
+                    <div className="px-4 py-2 bg-green-500/10 border border-green-500/30 rounded-lg text-green-400 text-sm font-semibold">
+                      ✓ Connected
+                    </div>
+                  )}
+                </div>
+              </div>
 
               {/* Payment Form */}
-              {isConnected && address ? (
+              {userRole && isConnected && address ? (
                 <div className="glass-card p-8 fade-in-up" style={{ animationDelay: '0.1s' }}>
                   <form onSubmit={handlePayment} className="space-y-6">
                     <div>
@@ -201,18 +197,23 @@ export default function PayPage() {
                     )}
                   </form>
                 </div>
-                  ) : (
-                    <div className="glass-card p-12 text-center fade-in-up" style={{ animationDelay: '0.1s' }}>
-                      <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500/20 to-purple-500/10 flex items-center justify-center mx-auto mb-6 border border-blue-500/30">
-                        <Wallet className="w-10 h-10 text-blue-400" />
-                      </div>
-                      <h3 className="text-xl font-bold mb-2">Wallet Required</h3>
-                      <p className="text-zinc-400 mb-6">
-                        Please connect your wallet to start making payments
-                      </p>
-                      <ConnectButton />
-                    </div>
-                  )}
+              ) : (
+                <div className="glass-card p-12 text-center fade-in-up" style={{ animationDelay: '0.1s' }}>
+                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500/20 to-purple-500/10 flex items-center justify-center mx-auto mb-6 border border-blue-500/30">
+                    <Wallet className="w-10 h-10 text-blue-400" />
+                  </div>
+                  <h3 className="text-xl font-bold mb-2">Wallet Required</h3>
+                  <p className="text-zinc-400 mb-6">
+                    Please login to connect your wallet and start making payments
+                  </p>
+                  <button
+                    onClick={openLoginModal}
+                    className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg hover:from-blue-600 hover:to-purple-600 transition-all font-semibold"
+                  >
+                    Login to Connect Wallet
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Right Column - Info & Success */}
@@ -273,76 +274,25 @@ export default function PayPage() {
                     <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500/20 to-green-600/10 flex items-center justify-center border border-green-500/30 flex-shrink-0">
                       <CheckCircle2 className="w-6 h-6 text-green-400" />
                     </div>
-                    <div className="flex-1 min-w-0">
+                    <div className="flex-1">
                       <h3 className="font-bold text-green-400 mb-2">Transaction Successful!</h3>
                       <p className="text-sm text-zinc-400 mb-4">
                         Your payment has been sent successfully
                       </p>
-                      <div className="space-y-3">
-                        <div className="flex flex-col sm:flex-row gap-2">
-                          <button
-                            onClick={(e) => {
-                              console.log('BaseScan button clicked!')
-                              e.preventDefault()
-                              e.stopPropagation()
-                              const url = `https://sepolia.basescan.org/tx/${hash}`
-                              console.log('BaseScan button clicked, hash:', hash)
-                              console.log('BaseScan URL:', url)
-                              
-                              try {
-                                const newWindow = window.open(url, '_blank', 'noopener,noreferrer')
-                                if (newWindow) {
-                                  console.log('BaseScan window opened successfully')
-                                  toast.success('Opening BaseScan...')
-                                } else {
-                                  console.error('BaseScan window was blocked')
-                                  toast.error('Popup blocked! Please allow popups for this site.')
-                                }
-                              } catch (error) {
-                                console.error('BaseScan error:', error)
-                                toast.error('Failed to open BaseScan')
-                              }
-                            }}
-                            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold inline-flex items-center gap-2 transition-all duration-200 shadow-lg hover:shadow-blue-500/50 flex-1"
-                            style={{ zIndex: 9999, position: 'relative', pointerEvents: 'auto' }}
-                          >
-                            <ExternalLink className="w-4 h-4" />
-                            BaseScan
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              console.log('Blockscout button clicked!')
-                              e.preventDefault()
-                              e.stopPropagation()
-                              const url = `https://base-sepolia.blockscout.com/tx/${hash}`
-                              console.log('Blockscout button clicked, hash:', hash)
-                              console.log('Blockscout URL:', url)
-                              
-                              try {
-                                const newWindow = window.open(url, '_blank', 'noopener,noreferrer')
-                                if (newWindow) {
-                                  console.log('Blockscout window opened successfully')
-                                  toast.success('Opening Blockscout...')
-                                } else {
-                                  console.error('Blockscout window was blocked')
-                                  toast.error('Popup blocked! Please allow popups for this site.')
-                                }
-                              } catch (error) {
-                                console.error('Blockscout error:', error)
-                                toast.error('Failed to open Blockscout')
-                              }
-                            }}
-                            className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-semibold inline-flex items-center gap-2 transition-all duration-200 shadow-lg hover:shadow-purple-500/50 flex-1"
-                            style={{ zIndex: 9999, position: 'relative', pointerEvents: 'auto' }}
-                          >
-                            <ExternalLink className="w-4 h-4" />
-                            Blockscout
-                          </button>
-                        </div>
-                        <div className="text-xs text-zinc-500">
-                          <span className="block mb-1">Transaction:</span>
-                          <span className="font-mono text-blue-400 break-all">{hash}</span>
-                        </div>
+                      <div className="mt-4">
+                        <button
+                          onClick={() => {
+                            const url = `https://sepolia.basescan.org/tx/${hash}`
+                            console.log('BaseScan button clicked, opening:', url)
+                            window.open(url, '_blank', 'noopener,noreferrer')
+                          }}
+                          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold inline-flex items-center gap-2 transition-all duration-200 shadow-lg hover:shadow-blue-500/50"
+                        >
+                          🔗 View on BaseScan (Sepolia)
+                        </button>
+                        <p className="text-xs text-zinc-500 mt-2">
+                          Transaction: <span className="font-mono text-blue-400">{hash}</span>
+                        </p>
                       </div>
                     </div>
                   </div>

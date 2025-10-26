@@ -6,8 +6,6 @@ import { usePrivy } from '@privy-io/react-auth'
 import { NavBar } from '../components/NavBar'
 import { MerchantDashboard } from './MerchantDashboard'
 import { UserDashboard } from './UserDashboard'
-import { UnifiedBalance } from '../components/UnifiedBalance'
-import { PaymentMethodSelector } from '../components/PaymentMethodSelector'
 import { Wallet } from 'lucide-react'
 
 export default function Dashboard() {
@@ -79,16 +77,7 @@ export default function Dashboard() {
       <NavBar />
       
       <div className="min-h-screen px-6 py-8 pt-24">
-        <div className="max-w-7xl mx-auto">
-          {/* Avail Nexus Integration Section */}
-          <div className="grid md:grid-cols-2 gap-6 mb-8">
-            <UnifiedBalance />
-            <PaymentMethodSelector />
-          </div>
-          
-          {/* Role-specific Dashboard */}
-          {userRole === 'merchant' ? <MerchantDashboard /> : <UserDashboard />}
-        </div>
+        {userRole === 'merchant' ? <MerchantDashboard /> : <UserDashboard />}
       </div>
     </>
   )

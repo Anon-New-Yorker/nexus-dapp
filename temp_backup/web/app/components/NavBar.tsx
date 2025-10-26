@@ -4,13 +4,14 @@ import Link from 'next/link'
 import { Zap, User, LogOut } from 'lucide-react'
 import { useUser } from '../context/UserContext'
 import { useAccount, useDisconnect } from 'wagmi'
-import { ConnectButton } from '@rainbow-me/rainbowkit'
+import { usePrivy } from '@privy-io/react-auth'
 import { useState } from 'react'
 
 export function NavBar() {
   const { userRole, openLoginModal, setUserRole } = useUser()
   const { address, isConnected } = useAccount()
   const { disconnect } = useDisconnect()
+  const { authenticated, user, logout: privyLogout } = usePrivy()
   const [isLoggingOut, setIsLoggingOut] = useState(false)
 
   const handleLogout = async () => {
@@ -24,8 +25,14 @@ export function NavBar() {
       
       // Disconnect Wagmi wallet if connected
       if (isConnected) {
-        console.log('Disconnecting wallet...')
+        console.log('Disconnecting Wagmi wallet...')
         disconnect()
+      }
+      
+      // Logout from Privy if authenticated
+      if (authenticated) {
+        console.log('Logging out from Privy...')
+        await privyLogout()
       }
       
       // Force clear localStorage
@@ -46,6 +53,10 @@ export function NavBar() {
     }
   }
 
+  const handleLogin = () => {
+    openLoginModal()
+  }
+
   return (
     <div className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md bg-black/20 border-b border-white/10">
       <div className="mx-auto max-w-7xl px-6 h-16 flex items-center justify-between">
@@ -63,7 +74,6 @@ export function NavBar() {
           <nav className="flex gap-8 text-sm font-medium">
             <Link href="/" className="text-zinc-400 hover:text-white transition-colors">Home</Link>
             <Link href="/pay" className="text-zinc-400 hover:text-white transition-colors">Pay</Link>
-            <Link href="/swap" className="text-zinc-400 hover:text-white transition-colors">Swap</Link>
             <Link href="/dashboard" className="text-zinc-400 hover:text-white transition-colors">Dashboard</Link>
           </nav>
 
@@ -77,7 +87,7 @@ export function NavBar() {
               <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10">
                 <User className="w-4 h-4" />
                 <span className="font-mono text-xs">
-                  {address?.slice(0, 6)}...{address?.slice(-4)}
+                  {(address || user?.wallet?.address)?.slice(0, 6)}...{(address || user?.wallet?.address)?.slice(-4)}
                 </span>
               </div>
               <button
@@ -90,7 +100,12 @@ export function NavBar() {
               </button>
             </div>
           ) : (
-            <ConnectButton />
+            <button
+              onClick={handleLogin}
+              className="glow-button px-6 py-2.5 rounded-xl font-semibold text-sm"
+            >
+              Login
+            </button>
           )}
         </div>
       </div>

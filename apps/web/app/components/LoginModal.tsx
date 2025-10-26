@@ -1,32 +1,74 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { X, Wallet, Store, User, ArrowRight } from 'lucide-react'
+import { X, Wallet, Store, User, ArrowRight, Mail } from 'lucide-react'
 import { useUser } from '../context/UserContext'
 import { useAccount } from 'wagmi'
 import { ConnectButton } from '@rainbow-me/rainbowkit'
 
+// Conditional Privy import
+let usePrivy: any = null
+let isPrivyAvailable = false
+
+try {
+  const privyModule = require('@privy-io/react-auth')
+  usePrivy = privyModule.usePrivy
+  isPrivyAvailable = !!process.env.NEXT_PUBLIC_PRIVY_APP_ID
+} catch (e) {
+  // Privy not available, will use RainbowKit only
+  console.log('Privy not configured, using RainbowKit only')
+}
+
 export function LoginModal() {
   const { isLoginModalOpen, closeLoginModal, setUserRole } = useUser()
   const { address, isConnected } = useAccount()
+  const privyHook = isPrivyAvailable && usePrivy ? usePrivy() : { login: () => {}, authenticated: false }
+  const { login, authenticated } = privyHook
   const [isConnecting, setIsConnecting] = useState(false)
+  const [intendedRole, setIntendedRole] = useState<'user' | 'merchant' | null>(null)
 
-  // Handle wallet connection success
+  // Handle authentication success and auto-set role if intended role was selected
   useEffect(() => {
-    if (isConnected && address) {
-      setIsConnecting(false)
-      // Set default role as 'user' for direct connection
-      setUserRole('user')
+    if ((authenticated || isConnected) && intendedRole && isLoginModalOpen) {
+      // User was authenticated/connected and had selected a role beforehand
+      setUserRole(intendedRole)
       closeLoginModal()
+      setIntendedRole(null) // Reset
     }
-  }, [isConnected, address, setUserRole, closeLoginModal])
+  }, [authenticated, isConnected, intendedRole, isLoginModalOpen, setUserRole, closeLoginModal])
 
   if (!isLoginModalOpen) return null
 
-  const handleMerchantAuth = () => {
-    // Set merchant role and close modal
-    setUserRole('merchant')
-    closeLoginModal()
+  const handleUserRole = () => {
+    // User selected personal/user role
+    if (authenticated || isConnected) {
+      // Already authenticated, set role immediately
+      setUserRole('user')
+      closeLoginModal()
+      setIntendedRole(null)
+    } else {
+      // Not authenticated yet, save intended role and trigger Privy
+      setIntendedRole('user')
+      login()
+    }
+  }
+
+  const handleMerchantRole = () => {
+    // User selected merchant role
+    if (authenticated || isConnected) {
+      // Already authenticated, set role immediately
+      setUserRole('merchant')
+      closeLoginModal()
+      setIntendedRole(null)
+    } else {
+      // Not authenticated yet, save intended role and trigger Privy
+      setIntendedRole('merchant')
+      login()
+    }
+  }
+
+  const handlePrivyLogin = () => {
+    login()
   }
 
   return (
@@ -52,6 +94,62 @@ export function LoginModal() {
         </div>
 
         <div className="max-w-md mx-auto space-y-6">
+          {/* Privy Login Options - Only show if Privy is available */}
+          {isPrivyAvailable && (
+            <>
+              <div className="glass-card p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500/20 to-blue-500/10 flex items-center justify-center border border-purple-500/30">
+                    <User className="w-5 h-5 text-purple-400" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold">Sign in with Privy</h3>
+                    <p className="text-sm text-zinc-400">Email, Social, or Wallet</p>
+                  </div>
+                </div>
+                
+                <div className="space-y-3">
+                  <button
+                    onClick={handlePrivyLogin}
+                    className="w-full px-4 py-3 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-lg hover:from-purple-600 hover:to-blue-600 transition-all font-semibold inline-flex items-center justify-center gap-2"
+                  >
+                    <Mail className="w-4 h-4" />
+                    Login with Privy
+                  </button>
+                  <p className="text-xs text-zinc-500 text-center">
+                    Supports Email, Google, and Wallet connection
+                  </p>
+                  
+                  {authenticated && (
+                    <div className="space-y-3">
+                      <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
+                        <p className="text-sm text-green-400">✓ Authenticated Successfully</p>
+                      </div>
+                      <button
+                        onClick={handleUserRole}
+                        className="w-full px-4 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg hover:from-blue-600 hover:to-purple-600 transition-all font-semibold inline-flex items-center justify-center gap-2"
+                      >
+                        <User className="w-4 h-4" />
+                        Continue as Personal User
+                        <ArrowRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* OR Divider */}
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-zinc-700"></div>
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-4 bg-zinc-900 text-zinc-500">OR</span>
+                </div>
+              </div>
+            </>
+          )}
+
           {/* Direct Wallet Connection */}
           <div className="glass-card p-6">
             <div className="flex items-center gap-3 mb-4">
@@ -59,26 +157,31 @@ export function LoginModal() {
                 <Wallet className="w-5 h-5 text-blue-400" />
               </div>
               <div>
-                <h3 className="font-semibold">Connect Wallet</h3>
-                <p className="text-sm text-zinc-400">Start with personal account</p>
+                <h3 className="font-semibold">Connect Wallet Directly</h3>
+                <p className="text-sm text-zinc-400">MetaMask, Coinbase, etc.</p>
               </div>
             </div>
             
             <div className="space-y-4">
               <div className="text-center">
-                <p className="text-sm text-zinc-400 mb-4">
-                  Connect your wallet to access cross-chain payments
-                </p>
                 <div className="flex justify-center">
                   <ConnectButton />
                 </div>
               </div>
               
               {isConnected && (
-                <div className="text-center">
-                  <div className="mb-3 p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
+                <div className="space-y-3">
+                  <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
                     <p className="text-sm text-green-400">✓ Wallet Connected Successfully</p>
                   </div>
+                  <button
+                    onClick={handleUserRole}
+                    className="w-full px-4 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg hover:from-blue-600 hover:to-purple-600 transition-all font-semibold inline-flex items-center justify-center gap-2"
+                  >
+                    <User className="w-4 h-4" />
+                    Continue as Personal User
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
                 </div>
               )}
             </div>
@@ -102,11 +205,11 @@ export function LoginModal() {
               </div>
               
               <button
-                onClick={handleMerchantAuth}
+                onClick={handleMerchantRole}
                 className="w-full px-4 py-3 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-lg hover:from-orange-600 hover:to-red-600 transition-all font-semibold inline-flex items-center justify-center gap-2"
               >
                 <Store className="w-4 h-4" />
-                Authenticate as Merchant
+                {(authenticated || isConnected) ? 'Continue as Merchant' : 'Authenticate as Merchant'}
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>

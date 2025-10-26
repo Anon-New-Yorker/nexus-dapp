@@ -1,10 +1,15 @@
 {
   "name": "agentic-payments",
   "version": "1.0.0",
+  "type": "module",
   "main": "index.js",
   "scripts": {
     "dev": "cd apps/web && npm run dev",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "agents:start": "tsx agents/index.ts",
+    "agents:demo": "tsx agents/demo.ts",
+    "agents:test": "tsx agents/test.ts",
+    "agents:simple-test": "tsx agents/simple-test.ts"
   },
   "keywords": [],
   "author": "",
@@ -15,12 +20,17 @@
     "eslint": "^9.38.0",
     "prettier": "^3.6.2",
     "ts-node": "^10.9.2",
+    "tsx": "^4.7.0",
     "typescript": "^5.9.3"
   },
   "dependencies": {
     "@hashgraph/sdk": "^2.75.0",
     "hedera-agent-kit": "^3.4.0",
     "node-fetch": "^3.3.2",
-    "react-is": "^19.2.0"
+    "react-is": "^19.2.0",
+    "@types/express": "^5.0.4",
+    "axios": "^1.12.2",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0"
   }
 }

@@ -1,0 +1,9 @@
+[[buildpacks]]
+id = "heroku/nodejs"
+version = "0.7.0"
+
+[build]
+command = "npm install --legacy-peer-deps && cd apps/web && npm install --legacy-peer-deps && npm run build"
+
+[build.environment]
+NODE_VERSION = "20"

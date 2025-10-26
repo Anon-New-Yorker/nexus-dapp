@@ -1,4 +1,4 @@
-import { Client, TopicMessageSubmitTransaction, TopicId } from "@hashgraph/sdk";
+import { Client, TopicMessageSubmitTransaction, TopicId, AccountBalanceQuery } from "@hashgraph/sdk";
 import dotenv from "dotenv";
 import type { AgentConfig } from "./types.js";
 
@@ -36,9 +36,30 @@ export async function submitMessage(topicId: string, message: any): Promise<stri
     }
 }
 
-// Note: Account balance checking would require AccountBalanceQuery
-// This is a placeholder for future implementation
+// Get account balance in HBAR
 export async function getAccountBalance(accountId: string): Promise<number> {
-    console.log(`📊 Account balance check requested for ${accountId}`);
-    return 0; // Placeholder - implement with AccountBalanceQuery if needed
+    try {
+        console.log(`📊 Checking balance for account ${accountId}`);
+        const query = new AccountBalanceQuery().setAccountId(accountId);
+        const balance = await query.execute(client);
+        const hbarBalance = balance.hbars.toTinybars().toNumber() / 100000000; // Convert from tinybars to HBAR
+        console.log(`💰 Account ${accountId} balance: ${hbarBalance} HBAR`);
+        return hbarBalance;
+    } catch (error) {
+        console.error(`❌ Failed to get balance for account ${accountId}:`, error);
+        return 0;
+    }
+}
+
+// Check if account has sufficient balance for a transfer
+export async function checkSufficientBalance(accountId: string, requiredAmount: number): Promise<boolean> {
+    try {
+        const balance = await getAccountBalance(accountId);
+        const hasEnough = balance >= requiredAmount;
+        console.log(`💰 Balance check: ${balance} HBAR available, ${requiredAmount} HBAR required. Sufficient: ${hasEnough}`);
+        return hasEnough;
+    } catch (error) {
+        console.error(`❌ Failed to check balance for account ${accountId}:`, error);
+        return false;
+    }
 }

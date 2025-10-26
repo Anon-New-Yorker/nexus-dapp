@@ -4,11 +4,13 @@ import { useState, useEffect } from 'react'
 import { ConnectButton } from '@rainbow-me/rainbowkit'
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useBalance } from 'wagmi'
 import { parseUnits, formatUnits } from 'viem'
-import { Send, CheckCircle2, Loader2, Info, Wallet, ArrowRight, ExternalLink, RefreshCw, TrendingUp } from 'lucide-react'
+import { Send, CheckCircle2, Loader2, Info, ArrowRight, ExternalLink, RefreshCw, TrendingUp } from 'lucide-react'
 import { Toaster, toast } from 'sonner'
 import { NavBar } from '../components/NavBar'
 import { useUser } from '../context/UserContext'
+import { useAvail } from '../context/AvailContext'
 import { PaymentMethodSelector } from '../components/PaymentMethodSelector'
+import { UnifiedBalance } from '../components/UnifiedBalance'
 import { AgenticPayment } from '../components/AgenticPayment'
 import { TokenSelector, Token } from '../components/TokenSelector'
 
@@ -34,6 +36,7 @@ const USDC_ABI = [
 export default function PayPage() {
   const { address, isConnected } = useAccount()
   const { userRole, openLoginModal } = useUser()
+  const { unifiedBalance, refreshBalances, isLoading } = useAvail()
 
   // Available tokens for payment
   const availableTokens: Token[] = [
@@ -59,7 +62,6 @@ export default function PayPage() {
   const [recipient, setRecipient] = useState('')
   const [amount, setAmount] = useState('')
   const [selectedToken, setSelectedToken] = useState<Token | null>(availableTokens[0]) // Default to WETH
-  const [unifiedBalance, setUnifiedBalance] = useState<string>('0')
   const [isLoadingBalance, setIsLoadingBalance] = useState(false)
   const [nexusCore, setNexusCore] = useState<NexusSDK | null>(null)
   const [isSwapping, setIsSwapping] = useState(false)
@@ -94,7 +96,7 @@ export default function PayPage() {
           const core = new NexusSDK({
             network: 'testnet',
           })
-          await core.initialize()
+          await core.initialize(window.ethereum)
           setNexusCore(core)
         }
       } catch (error) {
@@ -133,9 +135,9 @@ export default function PayPage() {
     // Convert balances to USD values
     const ethValueUSD = parseFloat(formatUnits(ethBalance.value, ethBalance.decimals)) * ethPrice
     const usdcValueUSD = parseFloat(formatUnits(usdcBalance.value, usdcBalance.decimals))
-    
+
     const totalValue = ethValueUSD + usdcValueUSD
-    
+
     console.log('Unified balance calculated:', {
       ethBalance: formatUnits(ethBalance.value, ethBalance.decimals),
       usdcBalance: formatUnits(usdcBalance.value, usdcBalance.decimals),
@@ -143,24 +145,13 @@ export default function PayPage() {
       usdcValueUSD,
       totalValue
     })
-    
+
     return totalValue.toFixed(2)
   }
 
-  // Update unified balance when wallet balances change
-  useEffect(() => {
-    if (ethBalance && usdcBalance) {
-      const balance = calculateUnifiedBalance()
-      setUnifiedBalance(balance)
-    }
-  }, [ethBalance, usdcBalance])
-
-  // Refresh unified balance
+  // Refresh unified balance using AvailContext
   const refreshUnifiedBalance = () => {
-    if (ethBalance && usdcBalance) {
-      const balance = calculateUnifiedBalance()
-      setUnifiedBalance(balance)
-    }
+    refreshBalances()
   }
 
   const handlePayment = async (e: React.FormEvent) => {
@@ -187,39 +178,39 @@ export default function PayPage() {
       if (selectedToken.symbol === 'WETH') {
         setIsSwapping(true)
         toast.info('Swapping ETH to USDC before payment...')
-        
+
         // Simulate swap delay
         await new Promise(resolve => setTimeout(resolve, 2000))
-        
+
         // For demo purposes, show success
         toast.success(`Successfully swapped ${amount} ETH to USDC`)
-        
+
         // Now proceed with USDC payment
         const amountInWei = parseUnits(amount, 6)
-        
+
         writeContract({
           address: USDC_ADDRESS as `0x${string}`,
           abi: USDC_ABI,
           functionName: 'transfer',
           args: [recipient as `0x${string}`, amountInWei],
         })
-        
+
         toast.success('Payment initiated after swap')
         setIsSwapping(false)
       } else if (selectedToken.symbol === 'USDC') {
         // Direct USDC payment
         const amountInWei = parseUnits(amount, 6)
-        
+
         writeContract({
           address: USDC_ADDRESS as `0x${string}`,
           abi: USDC_ABI,
           functionName: 'transfer',
           args: [recipient as `0x${string}`, amountInWei],
         })
-        
+
         toast.success('USDC payment initiated')
       }
-      
+
     } catch (error) {
       console.error('Payment error:', error)
       toast.error('Payment failed: ' + (error as Error).message)
@@ -232,7 +223,7 @@ export default function PayPage() {
       <div className="gradient-bg fixed inset-0 -z-10"></div>
       <Toaster theme="dark" position="top-right" />
       <NavBar />
-      
+
       <div className="min-h-screen px-6 py-8 pt-24">
         <div className="max-w-4xl mx-auto">
           {/* Header */}
@@ -241,7 +232,7 @@ export default function PayPage() {
               <span className="gradient-text">Send Payment</span>
             </h1>
             <p className="text-xl text-zinc-400">Transfer USDC on Base Sepolia Testnet with instant confirmation</p>
-            
+
             {/* Testnet Warning */}
             <div className="mt-6 inline-flex items-center gap-3 px-4 py-2 bg-orange-500/10 border border-orange-500/30 rounded-lg">
               <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse"></div>
@@ -250,90 +241,23 @@ export default function PayPage() {
           </div>
 
           {/* Avail Nexus Integration */}
-          <div className="grid md:grid-cols-2 gap-6 mb-8">
-            {/* Unified Balance */}
-            <div className="glass-card rounded-2xl shadow-2xl p-6 max-w-md mx-auto">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center space-x-2">
-                  <Wallet className="w-5 h-5 text-blue-400" />
-                  <h3 className="text-lg font-semibold text-white">Unified Balance</h3>
-                </div>
-                <button
-                  onClick={refreshUnifiedBalance}
-                  disabled={isLoadingBalance}
-                  className="p-2 bg-white/20 rounded-lg hover:bg-white/30 transition-colors disabled:opacity-50"
-                >
-                  <RefreshCw className={`w-4 h-4 text-white ${isLoadingBalance ? 'animate-spin' : ''}`} />
-                </button>
-              </div>
-              
-              <div className="text-center">
-                <div className="flex items-center justify-center space-x-2 mb-2">
-                  <TrendingUp className="w-5 h-5 text-green-400" />
-                  <span className="text-sm text-white/80">Total Value Across All Chains</span>
-                </div>
-                
-                <div className="text-3xl font-bold text-white mb-1">
-                  {isLoadingBalance ? (
-                    <div className="flex items-center justify-center space-x-2">
-                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                      <span>Loading...</span>
-                    </div>
-                  ) : (
-                    `$${parseFloat(unifiedBalance).toFixed(2)}`
-                  )}
-                </div>
-                
-                <p className="text-sm text-white/60">
-                  Aggregated from Ethereum, Polygon, Arbitrum, Base, and more
-                </p>
-                {ethBalance && usdcBalance && (
-                  <div className="mt-2 text-xs text-white/40">
-                    <div>ETH: {formatUnits(ethBalance.value, ethBalance.decimals)} × ${ethPrice.toFixed(0)}</div>
-                    <div>USDC: {formatUnits(usdcBalance.value, usdcBalance.decimals)}</div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-          </div>
-
-          {/* Payment Methods */}
-          <div className="mb-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <UnifiedBalance
+              balance={unifiedBalance}
+              isLoading={isLoading}
+              onRefresh={refreshBalances}
+            />
             <PaymentMethodSelector />
           </div>
 
-          {/* Agentic Payments */}
-          <div className="mb-8">
-            <AgenticPayment />
-          </div>
 
           <div className="grid md:grid-cols-2 gap-8">
             {/* Left Column - Payment Form */}
-            <div className="space-y-6">
-                  {/* Wallet Connection Card */}
-                  <div className="glass-card p-6 fade-in-up">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500/20 to-purple-500/10 flex items-center justify-center border border-blue-500/30">
-                        <Wallet className="w-5 h-5 text-blue-400" />
-                      </div>
-                      <div className="flex-1">
-                        <div className="font-semibold mb-0.5">Wallet</div>
-                        {isConnected && address ? (
-                          <div className="text-sm text-zinc-400 font-mono">
-                            {address.slice(0, 6)}...{address.slice(-4)}
-                          </div>
-                        ) : (
-                          <div className="text-sm text-zinc-400">Not connected</div>
-                        )}
-                      </div>
-                      <ConnectButton />
-                    </div>
-                  </div>
+            <div className="flex flex-col space-y-6">
 
               {/* Payment Form */}
               {isConnected && address ? (
-                <div className="glass-card p-8 fade-in-up" style={{ animationDelay: '0.1s' }}>
+                <div className="glass-card p-8 fade-in-up flex-1" style={{ animationDelay: '0.1s' }}>
                   <form onSubmit={handlePayment} className="space-y-6">
                     <div>
                       <label htmlFor="recipient" className="block text-sm font-semibold mb-3">
@@ -350,41 +274,44 @@ export default function PayPage() {
                       />
                     </div>
 
-                    <div>
-                      <label className="block text-sm font-semibold mb-3">
-                        Payment Token
-                      </label>
-                      <TokenSelector
-                        tokens={availableTokens}
-                        selectedToken={selectedToken}
-                        onTokenSelect={setSelectedToken}
-                        label=""
-                        disabled={isPending || isConfirming || isSwapping}
-                      />
-                    </div>
-
-                    <div>
-                      <label htmlFor="amount" className="block text-sm font-semibold mb-3">
-                        Amount (USDC)
-                      </label>
-                      <div className="relative">
-                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 text-2xl font-bold">$</span>
-                        <input
-                          id="amount"
-                          type="number"
-                          step="0.01"
-                          value={amount}
-                          onChange={(e) => setAmount(e.target.value)}
-                          placeholder="0.00"
-                          className="w-full pl-10 pr-4 py-3.5 bg-black/30 border border-white/10 rounded-xl focus:outline-none focus:border-blue-500 transition-all font-mono text-2xl font-bold placeholder:text-zinc-600"
+                    {/* Payment Token and Amount Section - Grouped for height matching */}
+                    <div className="flex flex-col space-y-4 flex-1">
+                      <div>
+                        <label className="block text-sm font-semibold mb-3">
+                          Payment Token
+                        </label>
+                        <TokenSelector
+                          tokens={availableTokens}
+                          selectedToken={selectedToken}
+                          onTokenSelect={setSelectedToken}
+                          label=""
                           disabled={isPending || isConfirming || isSwapping}
                         />
                       </div>
-                      {selectedToken?.symbol === 'WETH' && (
-                        <p className="text-sm text-orange-400 mt-2">
-                          ⚡ Will automatically swap ETH to USDC before payment
-                        </p>
-                      )}
+
+                      <div className="flex-1 flex flex-col justify-center">
+                        <label htmlFor="amount" className="block text-sm font-semibold mb-3">
+                          Amount (USDC)
+                        </label>
+                        <div className="relative">
+                          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 text-2xl font-bold">$</span>
+                          <input
+                            id="amount"
+                            type="number"
+                            step="0.01"
+                            value={amount}
+                            onChange={(e) => setAmount(e.target.value)}
+                            placeholder="0.00"
+                            className="w-full pl-10 pr-4 py-3.5 bg-black/30 border border-white/10 rounded-xl focus:outline-none focus:border-blue-500 transition-all font-mono text-2xl font-bold placeholder:text-zinc-600"
+                            disabled={isPending || isConfirming || isSwapping}
+                          />
+                        </div>
+                        {selectedToken?.symbol === 'WETH' && (
+                          <p className="text-sm text-orange-400 mt-2">
+                            ⚡ Will automatically swap ETH to USDC before payment
+                          </p>
+                        )}
+                      </div>
                     </div>
 
                     <button
@@ -419,24 +346,18 @@ export default function PayPage() {
                     )}
                   </form>
                 </div>
-                  ) : (
-                    <div className="glass-card p-12 text-center fade-in-up" style={{ animationDelay: '0.1s' }}>
-                      <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500/20 to-purple-500/10 flex items-center justify-center mx-auto mb-6 border border-blue-500/30">
-                        <Wallet className="w-10 h-10 text-blue-400" />
-                      </div>
-                      <h3 className="text-xl font-bold mb-2">Wallet Required</h3>
-                      <p className="text-zinc-400 mb-6">
-                        Please connect your wallet to start making payments
-                      </p>
-                      <ConnectButton />
-                    </div>
-                  )}
+              ) : (
+                <div className="glass-card p-8 text-center fade-in-up flex-1 flex flex-col justify-center" style={{ animationDelay: '0.1s' }}>
+                  <h3 className="text-xl font-bold mb-4">Connect Wallet to Continue</h3>
+                  <ConnectButton />
+                </div>
+              )}
             </div>
 
             {/* Right Column - Info & Success */}
-            <div className="space-y-6">
+            <div className="flex flex-col space-y-6">
               {/* Network Info */}
-              <div className="glass-card p-6 fade-in-up" style={{ animationDelay: '0.2s' }}>
+              <div className="glass-card p-10 fade-in-up" style={{ animationDelay: '0.2s' }}>
                 <div className="flex items-start gap-4">
                   <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500/20 to-blue-600/10 flex items-center justify-center border border-blue-500/30 flex-shrink-0">
                     <Info className="w-6 h-6 text-blue-400" />
@@ -516,7 +437,7 @@ export default function PayPage() {
                               const url = `https://sepolia.basescan.org/tx/${hash}`
                               console.log('BaseScan button clicked, hash:', hash)
                               console.log('BaseScan URL:', url)
-                              
+
                               try {
                                 const newWindow = window.open(url, '_blank', 'noopener,noreferrer')
                                 if (newWindow) {
@@ -545,7 +466,7 @@ export default function PayPage() {
                               const url = `https://base-sepolia.blockscout.com/tx/${hash}`
                               console.log('Blockscout button clicked, hash:', hash)
                               console.log('Blockscout URL:', url)
-                              
+
                               try {
                                 const newWindow = window.open(url, '_blank', 'noopener,noreferrer')
                                 if (newWindow) {
@@ -578,7 +499,7 @@ export default function PayPage() {
               )}
 
               {/* Features */}
-              <div className="glass-card p-6 fade-in-up" style={{ animationDelay: '0.4s' }}>
+              <div className="glass-card p-10 fade-in-up" style={{ animationDelay: '0.4s' }}>
                 <h3 className="font-bold mb-4">Why AgenticPay?</h3>
                 <ul className="space-y-3 text-sm">
                   <li className="flex items-start gap-3">
@@ -600,6 +521,11 @@ export default function PayPage() {
                 </ul>
               </div>
             </div>
+          </div>
+
+          {/* Agentic Payments */}
+          <div className="mb-8 mt-8">
+            <AgenticPayment />
           </div>
         </div>
       </div>

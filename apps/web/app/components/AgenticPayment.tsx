@@ -79,7 +79,7 @@ export function AgenticPayment({ onPaymentComplete }: AgenticPaymentProps) {
           balance: requiredAmount.toString(),
           address: '0x0000000000000000000000000000000000000000',
           decimals: 6,
-          logoUrl: 'https://cryptologos.cc/logos/usd-coin-usdc-logo.png'
+          logoUrl: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86a33E6441c8C06Cdd435c38c5c4aBa3E2B/logo.png'
         }
       }
     }

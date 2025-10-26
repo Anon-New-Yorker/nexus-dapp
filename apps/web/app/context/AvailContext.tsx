@@ -59,6 +59,29 @@ export function AvailProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null)
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod | null>(null)
   const [nexusSDK, setNexusSDK] = useState<NexusSDK | null>(null)
+  const [ethPrice, setEthPrice] = useState(4000) // Default ETH price
+
+  // Fetch real-time ETH price
+  useEffect(() => {
+    const fetchEthPrice = async () => {
+      try {
+        const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd')
+        const data = await response.json()
+        if (data.ethereum?.usd) {
+          setEthPrice(data.ethereum.usd)
+          console.log('ETH price fetched:', data.ethereum.usd)
+        }
+      } catch (error) {
+        console.error('Failed to fetch ETH price:', error)
+        // Keep default price of 4000
+      }
+    }
+    
+    fetchEthPrice()
+    // Update price every 30 seconds
+    const interval = setInterval(fetchEthPrice, 30000)
+    return () => clearInterval(interval)
+  }, [])
 
   // Initialize Nexus SDK
   useEffect(() => {
@@ -86,7 +109,7 @@ export function AvailProvider({ children }: { children: ReactNode }) {
       // Add ETH balance
       if (balance) {
         const balanceInEth = parseFloat(formatUnits(balance.value, balance.decimals))
-        const ethValueInUsd = balanceInEth * 3000 // ETH to USD conversion (Base Sepolia testnet price)
+        const ethValueInUsd = balanceInEth * ethPrice // ETH to USD conversion using real-time price
         totalUsdValue += ethValueInUsd
         
         const ethPaymentMethod: PaymentMethod = {
@@ -97,7 +120,7 @@ export function AvailProvider({ children }: { children: ReactNode }) {
           balance: balanceInEth.toFixed(4),
           address: address,
           decimals: balance.decimals,
-          logoUrl: 'https://cryptologos.cc/logos/ethereum-eth-logo.png'
+          logoUrl: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/info/logo.png'
         }
         paymentMethodsList.push(ethPaymentMethod)
       }
@@ -115,7 +138,7 @@ export function AvailProvider({ children }: { children: ReactNode }) {
           balance: usdcBalanceFormatted.toFixed(2),
           address: address,
           decimals: 6,
-          logoUrl: 'https://cryptologos.cc/logos/usd-coin-usdc-logo.png'
+          logoUrl: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86a33E6441c8C06Cdd435c38c5c4aBa3E2B/logo.png'
         }
         paymentMethodsList.push(usdcPaymentMethod)
       }
@@ -129,14 +152,14 @@ export function AvailProvider({ children }: { children: ReactNode }) {
       setUnifiedBalance('0')
       setPaymentMethods([])
     }
-  }, [balance, usdcBalance, address, isBalanceLoading, isUsdcLoading])
+  }, [balance, usdcBalance, address, isBalanceLoading, isUsdcLoading, ethPrice])
 
   // Force wallet balance update when address changes
   useEffect(() => {
     if (address && balance) {
       console.log('Address changed, forcing wallet balance update')
       const balanceInEth = parseFloat(formatUnits(balance.value, balance.decimals))
-      const balanceInUsd = balanceInEth * 3000 // ETH to USD conversion (Base Sepolia testnet price)
+      const balanceInUsd = balanceInEth * ethPrice // ETH to USD conversion using real-time price
       setUnifiedBalance(balanceInUsd.toLocaleString())
       
       const walletPaymentMethod: PaymentMethod = {
@@ -152,7 +175,7 @@ export function AvailProvider({ children }: { children: ReactNode }) {
       
       setPaymentMethods([walletPaymentMethod])
     }
-  }, [address, balance])
+  }, [address, balance, ethPrice])
 
   const refreshBalances = async () => {
     if (!address) {
@@ -187,7 +210,7 @@ export function AvailProvider({ children }: { children: ReactNode }) {
         // Add ETH balance
         if (freshBalance) {
           const balanceInEth = parseFloat(formatUnits(freshBalance.value, freshBalance.decimals))
-          const ethValueInUsd = balanceInEth * 3000 // ETH to USD conversion (Base Sepolia testnet price)
+          const ethValueInUsd = balanceInEth * ethPrice // ETH to USD conversion using real-time price
           totalUsdValue += ethValueInUsd
           
           const ethPaymentMethod: PaymentMethod = {
@@ -198,7 +221,7 @@ export function AvailProvider({ children }: { children: ReactNode }) {
             balance: balanceInEth.toFixed(4),
             address: address,
             decimals: freshBalance.decimals,
-            logoUrl: 'https://cryptologos.cc/logos/ethereum-eth-logo.png'
+            logoUrl: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/info/logo.png'
           }
           paymentMethodsList.push(ethPaymentMethod)
         }
@@ -216,7 +239,7 @@ export function AvailProvider({ children }: { children: ReactNode }) {
             balance: usdcBalanceFormatted.toFixed(2),
             address: address,
             decimals: 6,
-            logoUrl: 'https://cryptologos.cc/logos/usd-coin-usdc-logo.png'
+            logoUrl: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86a33E6441c8C06Cdd435c38c5c4aBa3E2B/logo.png'
           }
           paymentMethodsList.push(usdcPaymentMethod)
         }
@@ -260,7 +283,7 @@ export function AvailProvider({ children }: { children: ReactNode }) {
     if (address && balance) {
       console.log('Forcing wallet balance update on mount')
       const balanceInEth = parseFloat(formatUnits(balance.value, balance.decimals))
-      const balanceInUsd = balanceInEth * 3000 // ETH to USD conversion (Base Sepolia testnet price)
+      const balanceInUsd = balanceInEth * ethPrice // ETH to USD conversion using real-time price
       setUnifiedBalance(balanceInUsd.toLocaleString())
       
       const walletPaymentMethod: PaymentMethod = {
@@ -276,7 +299,7 @@ export function AvailProvider({ children }: { children: ReactNode }) {
       
       setPaymentMethods([walletPaymentMethod])
     }
-  }, [])
+  }, [ethPrice])
 
   return (
     <AvailContext.Provider

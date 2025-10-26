@@ -63,7 +63,6 @@ export function NavBar() {
           <nav className="flex gap-8 text-sm font-medium">
             <Link href="/" className="text-zinc-400 hover:text-white transition-colors">Home</Link>
             <Link href="/pay" className="text-zinc-400 hover:text-white transition-colors">Pay</Link>
-            <Link href="/swap" className="text-zinc-400 hover:text-white transition-colors">Swap</Link>
             <Link href="/dashboard" className="text-zinc-400 hover:text-white transition-colors">Dashboard</Link>
           </nav>
 

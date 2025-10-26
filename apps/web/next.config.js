@@ -11,6 +11,11 @@ const nextConfig = {
         hostname: 'cryptologos.cc',
         pathname: '/logos/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'raw.githubusercontent.com',
+        pathname: '/trustwallet/assets/master/**',
+      },
     ],
   },
   webpack: (config) => {

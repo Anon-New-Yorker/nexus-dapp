@@ -5,6 +5,7 @@ import { getDefaultConfig, RainbowKitProvider } from '@rainbow-me/rainbowkit'
 import { WagmiProvider } from 'wagmi'
 import { baseSepolia } from 'wagmi/chains'
 import { QueryClientProvider, QueryClient } from '@tanstack/react-query'
+import { PrivyProvider } from '@privy-io/react-auth'
 import { UserProvider } from './context/UserContext'
 import { AvailProvider } from './context/AvailContext'
 
@@ -17,8 +18,11 @@ const config = getDefaultConfig({
 
 const queryClient = new QueryClient()
 
+// Check if Privy App ID is configured
+const PRIVY_APP_ID = process.env.NEXT_PUBLIC_PRIVY_APP_ID
+
 export function Providers({ children }: { children: React.ReactNode }) {
-  return (
+  const content = (
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
         <RainbowKitProvider>
@@ -31,4 +35,25 @@ export function Providers({ children }: { children: React.ReactNode }) {
       </QueryClientProvider>
     </WagmiProvider>
   )
+
+  // Only wrap with PrivyProvider if a valid App ID is configured
+  if (PRIVY_APP_ID && PRIVY_APP_ID.startsWith('clp')) {
+    return (
+      <PrivyProvider
+        appId={PRIVY_APP_ID}
+        config={{
+          loginMethods: ['email', 'google', 'wallet'],
+          appearance: {
+            theme: 'dark',
+            accentColor: '#676FFF',
+          },
+        }}
+      >
+        {content}
+      </PrivyProvider>
+    )
+  }
+
+  // Without Privy, just return the content with RainbowKit
+  return content
 }

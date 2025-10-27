@@ -301,8 +301,7 @@ export function AgenticPayment({ onPaymentComplete }: AgenticPaymentProps) {
           toast.error(`Transaction failed: ${txError instanceof Error ? txError.message : 'Unknown error'}`)
           return
         }
-            
-          } else {
+      } else {
         // For non-USDC tokens or other networks, simulate for now
         toast.info(`Processing ${amount} ${token} to ${recipient} on ${network}...`)
         await new Promise(resolve => setTimeout(resolve, 3000)) // Simulate processing

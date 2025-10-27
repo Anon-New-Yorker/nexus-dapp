@@ -48,7 +48,7 @@ export async function GET(request: Request) {
       transactions: inboundTransactions,
     })
   } catch (error) {
-    console.error('Error fetching merchant summary:', error)
+    console.warn('Error fetching merchant summary:', error instanceof Error ? error.message : 'Unknown error')
     return NextResponse.json(
       { error: 'Failed to fetch merchant data' },
       { status: 500 }

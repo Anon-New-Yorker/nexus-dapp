@@ -97,7 +97,7 @@ export function UserDashboard() {
         const data = await response.json()
         setSpendingData(data)
       } catch (error) {
-        console.error('Error fetching spending data:', error)
+        console.warn('Error fetching spending data:', error instanceof Error ? error.message : 'Unknown error')
         toast.error('Failed to fetch spending data')
       } finally {
         setLoading(false)

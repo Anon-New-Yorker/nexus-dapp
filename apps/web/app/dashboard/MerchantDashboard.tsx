@@ -109,7 +109,7 @@ export function MerchantDashboard() {
         setInboundData(inbound)
         setOutboundData(outbound)
       } catch (error) {
-        console.error('Error fetching merchant data:', error)
+        console.warn('Error fetching merchant data:', error instanceof Error ? error.message : 'Unknown error')
         toast.error('Failed to fetch merchant data')
       } finally {
         setLoading(false)

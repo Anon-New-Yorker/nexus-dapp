@@ -55,7 +55,7 @@ export async function GET(request: Request) {
       count: outgoingTxs.length,
     })
   } catch (error) {
-    console.error('Error fetching user spending:', error)
+    console.warn('Error fetching user spending:', error instanceof Error ? error.message : 'Unknown error')
     return NextResponse.json(
       { error: 'Failed to fetch spending data' },
       { status: 500 }

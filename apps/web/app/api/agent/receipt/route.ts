@@ -33,7 +33,7 @@ export async function POST(request: Request) {
       message: 'Receipt saved successfully',
     })
   } catch (error) {
-    console.error('Error saving agent receipt:', error)
+    console.warn('Error saving agent receipt:', error instanceof Error ? error.message : 'Unknown error')
     return NextResponse.json(
       { error: 'Failed to save receipt' },
       { status: 500 }
@@ -54,7 +54,7 @@ export async function GET() {
       count: agentReceipts.length,
     })
   } catch (error) {
-    console.error('Error fetching agent receipts:', error)
+    console.warn('Error fetching agent receipts:', error instanceof Error ? error.message : 'Unknown error')
     return NextResponse.json(
       { error: 'Failed to fetch receipts' },
       { status: 500 }

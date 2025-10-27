@@ -169,11 +169,10 @@ export function AgenticPayment({ onPaymentComplete }: AgenticPaymentProps) {
         // Convert amount to wei (USDC has 6 decimals)
         const amountInWei = parseUnits(amount.toString(), 6)
         
-        console.log('🚀 REAL TRANSACTION: Attempting USDC transfer', {
+        // Log transaction details for debugging (production-safe)
+        console.log('Processing USDC transfer:', {
           recipient,
           amount: amount.toString(),
-          amountInWei: amountInWei.toString(),
-          usdcAddress: USDC_ADDRESS,
           userAddress: address
         })
         

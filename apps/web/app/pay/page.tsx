@@ -35,8 +35,7 @@ export default function PayPage() {
   const [recipient, setRecipient] = useState('')
   const [amount, setAmount] = useState('')
 
-  // Debug logging
-  console.log('PayPage Debug:', { address, isConnected, userRole })
+  // Debug logging removed for production
 
   const { data: hash, writeContract, isPending, error: writeError } = useWriteContract()
 

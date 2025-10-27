@@ -75,8 +75,10 @@ export default function PayPage() {
       
       toast.success('Transaction initiated')
     } catch (error) {
-      console.error('Payment error:', error)
-      toast.error('Payment failed: ' + (error as Error).message)
+      // Log error for debugging but don't expose internal details to user
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
+      console.error('Payment error:', { error: errorMessage, recipient, amount })
+      toast.error(`Payment failed: ${errorMessage}`)
     }
   }
 
@@ -295,11 +297,11 @@ export default function PayPage() {
                                   console.log('BaseScan window opened successfully')
                                   toast.success('Opening BaseScan...')
                                 } else {
-                                  console.error('BaseScan window was blocked')
+                                  console.warn('BaseScan window was blocked by browser')
                                   toast.error('Popup blocked! Please allow popups for this site.')
                                 }
                               } catch (error) {
-                                console.error('BaseScan error:', error)
+                                console.warn('BaseScan error:', error instanceof Error ? error.message : 'Unknown error')
                                 toast.error('Failed to open BaseScan')
                               }
                             }}
@@ -324,11 +326,11 @@ export default function PayPage() {
                                   console.log('Blockscout window opened successfully')
                                   toast.success('Opening Blockscout...')
                                 } else {
-                                  console.error('Blockscout window was blocked')
+                                  console.warn('Blockscout window was blocked by browser')
                                   toast.error('Popup blocked! Please allow popups for this site.')
                                 }
                               } catch (error) {
-                                console.error('Blockscout error:', error)
+                                console.warn('Blockscout error:', error instanceof Error ? error.message : 'Unknown error')
                                 toast.error('Failed to open Blockscout')
                               }
                             }}

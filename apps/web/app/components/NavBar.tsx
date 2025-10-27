@@ -40,7 +40,7 @@ export function NavBar() {
       
       console.log('Logout successful')
     } catch (error) {
-      console.error('Logout error:', error)
+      console.warn('Logout error:', error instanceof Error ? error.message : 'Unknown error')
     } finally {
       setIsLoggingOut(false)
     }

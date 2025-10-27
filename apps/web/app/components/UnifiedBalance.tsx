@@ -18,7 +18,7 @@ export function UnifiedBalance() {
       await refreshBalances()
       setLastRefresh(new Date())
     } catch (err) {
-      console.error('Error refreshing balance:', err)
+      console.warn('Error refreshing balance:', err instanceof Error ? err.message : 'Unknown error')
     } finally {
       setIsRefreshing(false)
     }

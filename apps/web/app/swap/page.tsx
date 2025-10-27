@@ -28,7 +28,7 @@ export default function SwapPage() {
           setSdk(nexusSDK)
         }
       } catch (error) {
-        console.error('Failed to initialize Nexus SDK:', error)
+        console.warn('Failed to initialize Nexus SDK:', error instanceof Error ? error.message : 'Unknown error')
       }
     }
 
@@ -50,7 +50,7 @@ export default function SwapPage() {
         alert('Please install MetaMask or another wallet provider')
       }
     } catch (error) {
-      console.error('Failed to connect wallet:', error)
+      console.warn('Failed to connect wallet:', error instanceof Error ? error.message : 'Unknown error')
       alert('Failed to connect wallet')
     }
   }
@@ -88,7 +88,7 @@ export default function SwapPage() {
         alert('Swap failed: ' + swapResult.error)
       }
     } catch (error) {
-      console.error('Swap failed:', error)
+      console.warn('Swap failed:', error instanceof Error ? error.message : 'Unknown error')
       alert('Swap failed: ' + error)
     } finally {
       setIsSwapping(false)

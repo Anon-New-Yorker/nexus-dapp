@@ -70,7 +70,7 @@ export function AvailProvider({ children }: { children: ReactNode }) {
         setNexusSDK(nexus)
         console.log('Nexus SDK initialized successfully')
       } catch (err) {
-        console.error('Failed to initialize Nexus SDK:', err)
+        console.warn('Failed to initialize Nexus SDK:', err instanceof Error ? err.message : 'Unknown error')
       }
     }
   }, [])
@@ -259,7 +259,7 @@ export function AvailProvider({ children }: { children: ReactNode }) {
       
     } catch (err) {
       setError('Failed to fetch balances')
-      console.error('Error fetching wallet balance:', err)
+      console.warn('Error fetching wallet balance:', err instanceof Error ? err.message : 'Unknown error')
       
       setPaymentMethods([])
       setUnifiedBalance('0')

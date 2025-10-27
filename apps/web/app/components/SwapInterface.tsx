@@ -74,7 +74,7 @@ export const SwapInterface: React.FC<SwapInterfaceProps> = ({
         toToken,
       })
     } catch (error) {
-      console.error('Swap failed:', error)
+      console.warn('Swap failed:', error instanceof Error ? error.message : 'Unknown error')
     }
   }
 
